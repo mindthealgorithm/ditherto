@@ -222,5 +222,5 @@ Encoding selection is inferred from `output` file extension or `opts.format`.
 
 ---
 
-*© 2025 ditherto authors • MIT*
+*© 2025 Mind The Algorithm • MIT*
 
