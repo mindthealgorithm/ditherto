@@ -29,9 +29,23 @@ class AlgorithmRegistry {
   list(): string[] {
     return Array.from(this.algorithms.keys());
   }
+
+  /**
+   * Clear all registered algorithms (primarily for testing)
+   */
+  clear(): void {
+    this.algorithms.clear();
+  }
 }
 
 /** Global algorithm registry instance */
 export const algorithms = new AlgorithmRegistry();
 
-// Built-in algorithms will be registered here when implemented
+// Register built-in algorithms
+import { atkinsonAlgorithm } from './algorithms/atkinson.js';
+import { floydSteinbergAlgorithm } from './algorithms/floydSteinberg.js';
+import { orderedAlgorithm } from './algorithms/ordered.js';
+
+algorithms.register(atkinsonAlgorithm);
+algorithms.register(floydSteinbergAlgorithm);
+algorithms.register(orderedAlgorithm);

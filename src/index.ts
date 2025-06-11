@@ -19,5 +19,10 @@ export { generatePalette } from './palette/extract.js';
 // Algorithm registry
 export { algorithms } from './algorithmRegistry.js';
 
+// Import algorithms to ensure they get registered
+import './algorithms/atkinson.js';
+import './algorithms/floydSteinberg.js';
+import './algorithms/ordered.js';
+
 // Version info
 export const version = '0.1.0';
