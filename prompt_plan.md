@@ -3,12 +3,12 @@
 This plan follows TDD principles: write tests first, implement to make tests pass, refactor.
 
 ## Phase 1: Core Infrastructure & Algorithm Registry
-- [ ] **Test & implement algorithm registry functionality**
+- [x] **Test & implement algorithm registry functionality**
   - Write tests for registering, retrieving, and listing algorithms
   - Test error handling for missing algorithms
   - Implement the registry to pass tests
 
-- [ ] **Test & implement basic dithering algorithms**
+- [x] **Test & implement basic dithering algorithms**
   - Write tests for Atkinson dithering algorithm on simple ImageData
   - Write tests for Floyd-Steinberg dithering algorithm
   - Write tests for ordered (Bayer) dithering algorithm
@@ -16,42 +16,42 @@ This plan follows TDD principles: write tests first, implement to make tests pas
   - Test algorithm registration with the registry
 
 ## Phase 2: Palette Operations
-- [ ] **Test & implement palette extraction**
+- [x] **Test & implement palette extraction**
   - Write tests for extracting colors from test PNG images
   - Test edge cases: empty images, single color, many colors
   - Create test fixtures with known color palettes
   - Implement generatePalette function for both browser/Node environments
   - Test palette deduplication and sorting
 
-- [ ] **Test & implement palette utilities**
+- [x] **Test & implement palette utilities**
   - Write tests for color distance calculations
   - Write tests for finding closest palette color
   - Test default palettes (black/white, gameboy, etc.)
   - Implement palette matching utilities
 
 ## Phase 3: Image I/O & Environment Detection
-- [ ] **Test & implement input image handling**
+- [x] **Test & implement input image handling**
   - Write tests for loading various InputImageSource types
   - Test browser environment: HTMLImageElement, Blob, File
   - Test Node environment: file paths, ArrayBuffer, Uint8Array
   - Create test fixtures for different image formats
   - Implement image loading adapters for both environments
 
-- [ ] **Test & implement resize functionality**
+- [x] **Test & implement resize functionality**
   - Write tests for proportional resizing with width/height constraints
   - Test aspect ratio preservation
   - Test edge cases: zero dimensions, very large images
   - Implement canvas-based resizing for both environments
 
 ## Phase 4: Core Pipeline Integration
-- [ ] **Test & implement ditherImage pipeline**
-  - Write integration tests for the full resize ’ dither pipeline
+- [x] **Test & implement ditherImage pipeline**
+  - Write integration tests for the full resize â†’ dither pipeline
   - Test with different algorithm/palette combinations
   - Test step parameter for chunky pixel effects
   - Test quality parameter handling
   - Implement the orchestrating ditherImage function
 
-- [ ] **Test & implement output formatting**
+- [x] **Test & implement output formatting**
   - Write tests for different output formats (ImageData, Uint8Array)
   - Test browser vs Node output differences
   - Test encoding quality parameters
