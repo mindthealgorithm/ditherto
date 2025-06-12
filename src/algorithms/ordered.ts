@@ -21,14 +21,18 @@ const BAYER_4X4 = [
  * Find closest color in palette using Euclidean distance
  */
 function findClosestColor(pixel: ColorRGB, palette: ColorRGB[]): ColorRGB {
+  if (palette.length === 0) {
+    throw new Error('Palette cannot be empty');
+  }
+  
   let minDistance = Number.POSITIVE_INFINITY;
-  let closest = palette[0];
+  let closest = palette[0]!; // Non-null assertion since we checked length > 0
   
   for (const color of palette) {
     const distance = Math.sqrt(
-      Math.pow(pixel[0] - color[0], 2) +
-      Math.pow(pixel[1] - color[1], 2) +
-      Math.pow(pixel[2] - color[2], 2)
+      (pixel[0] - color[0]) ** 2 +
+      (pixel[1] - color[1]) ** 2 +
+      (pixel[2] - color[2]) ** 2
     );
     
     if (distance < minDistance) {
@@ -38,13 +42,6 @@ function findClosestColor(pixel: ColorRGB, palette: ColorRGB[]): ColorRGB {
   }
   
   return closest;
-}
-
-/**
- * Apply threshold to pixel channel using Bayer matrix
- */
-function applyThreshold(value: number, threshold: number): number {
-  return value > threshold ? 255 : 0;
 }
 
 export const orderedAlgorithm: DitherAlgorithm = {
@@ -60,6 +57,7 @@ export const orderedAlgorithm: DitherAlgorithm = {
     
     const { width, height } = data;
     const result = new ImageData(new Uint8ClampedArray(data.data), width, height);
+    const pixels = result.data;
     
     // For simple ordered dithering, we'll use a different approach
     // than error diffusion - apply threshold based on position
@@ -67,17 +65,18 @@ export const orderedAlgorithm: DitherAlgorithm = {
       for (let x = 0; x < width; x += step) {
         const i = (y * width + x) * 4;
         
-        // Get current pixel
+        // Get current pixel - use non-null assertion since we know indices are valid
         const oldPixel: ColorRGB = [
-          result.data[i],
-          result.data[i + 1], 
-          result.data[i + 2]
+          pixels[i]!,
+          pixels[i + 1]!, 
+          pixels[i + 2]!
         ];
         
         // Get threshold from Bayer matrix based on position
         const bayerX = Math.floor(x / step) % 4;
         const bayerY = Math.floor(y / step) % 4;
-        const threshold = BAYER_4X4[bayerY][bayerX];
+        const bayerRow = BAYER_4X4[bayerY];
+        const threshold = bayerRow ? bayerRow[bayerX] ?? 128 : 128;
         
         // For ordered dithering with multi-color palettes,
         // we'll use a simpler approach: add noise based on threshold
@@ -96,10 +95,10 @@ export const orderedAlgorithm: DitherAlgorithm = {
         const newPixel = findClosestColor(noisyPixel, palette);
         
         // Set new pixel value
-        result.data[i] = newPixel[0];
-        result.data[i + 1] = newPixel[1];
-        result.data[i + 2] = newPixel[2];
-        result.data[i + 3] = 255; // Alpha
+        pixels[i] = newPixel[0];
+        pixels[i + 1] = newPixel[1];
+        pixels[i + 2] = newPixel[2];
+        pixels[i + 3] = 255; // Alpha
       }
     }
     

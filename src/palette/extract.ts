@@ -59,7 +59,9 @@ async function loadImageDataFromPath(path: string): Promise<ImageData> {
   try {
     // Dynamic import for Node.js-only dependency
     const { readFile } = await import('node:fs/promises');
-    const { createCanvas, loadImage } = await import('canvas') as any;
+    const canvasPackageName = 'canvas';
+    const canvasModule = await import(canvasPackageName) as any;
+    const { createCanvas, loadImage } = canvasModule;
     
     const imageBuffer = await readFile(path);
     const image = await loadImage(imageBuffer);
@@ -120,7 +122,14 @@ export function extractColorsFromImageData(imageData: ImageData): ColorRGB[] {
   // Convert Set to array of RGB tuples
   const palette: ColorRGB[] = Array.from(colorSet).map(colorKey => {
     const parts = colorKey.split(',').map(Number);
-    return [parts[0], parts[1], parts[2]] as const;
+    if (parts.length !== 3) {
+      throw new Error(`Invalid color key format: ${colorKey}`);
+    }
+    const [r, g, b] = parts;
+    if (r === undefined || g === undefined || b === undefined) {
+      throw new Error(`Invalid color values in key: ${colorKey}`);
+    }
+    return [r, g, b] as const;
   });
   
   // Sort colors for consistent output (by luminance)

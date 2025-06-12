@@ -13,6 +13,8 @@ export async function ditherImage(
   input: InputImageSource,
   options: DitherOptions = {}
 ): Promise<Uint8Array | ImageData> {
-  // Implementation will be added when we build the core functionality
+  // TODO: Implement the full resize → dither pipeline
+  // This stub ensures the function can be imported without errors
+  console.log(`Processing image with options:`, { input: typeof input, options });
   throw new Error('ditherImage not yet implemented');
 }

@@ -5,9 +5,9 @@
  * Provides command-line interface for batch processing images
  */
 
-import { parseArgs } from 'node:util';
-import { ditherImage } from './imageProcessor.js';
-import type { DitherOptions } from './types.js';
+// import { parseArgs } from 'node:util'; // TODO: Use when implementing CLI
+// import { ditherImage } from './imageProcessor.js'; // TODO: Use when implementing CLI
+// import type { DitherOptions } from './types.js'; // TODO: Use when implementing CLI
 
 function showHelp(): void {
   console.log(`
@@ -30,8 +30,10 @@ Options:
 }
 
 async function main(): Promise<void> {
-  // Implementation will be added when we build the core functionality
-  console.log('CLI not yet implemented');
+  // TODO: Implement CLI argument parsing and image processing
+  // This stub ensures the CLI module loads without errors
+  console.log('CLI not yet implemented - use showHelp() for usage info');
+  showHelp();
   process.exit(1);
 }
 

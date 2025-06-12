@@ -22,7 +22,7 @@ export function findClosestColor(color: ColorRGB, palette: ColorRGB[]): ColorRGB
   }
   
   let minDistance = Infinity;
-  let closest = palette[0];
+  let closest = palette[0]!; // Non-null assertion since we checked length > 0
   
   for (const paletteColor of palette) {
     const distance = colorDistance(color, paletteColor);

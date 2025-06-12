@@ -21,7 +21,15 @@ export function createImageData(colors: ColorRGB[][], width?: number, height?: n
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
-      const [r, g, b] = colors[y][x];
+      const row = colors[y];
+      if (!row) {
+        throw new Error(`Row ${y} is missing in colors array`);
+      }
+      const color = row[x];
+      if (!color) {
+        throw new Error(`Color at [${y}, ${x}] is missing`);
+      }
+      const [r, g, b] = color;
       data[i] = r;     // Red
       data[i + 1] = g; // Green  
       data[i + 2] = b; // Blue
@@ -110,9 +118,13 @@ export function compareImageData(a: ImageData, b: ImageData): boolean {
  */
 export function getPixel(imageData: ImageData, x: number, y: number): ColorRGB {
   const i = (y * imageData.width + x) * 4;
-  return [
-    imageData.data[i],
-    imageData.data[i + 1], 
-    imageData.data[i + 2]
-  ];
+  const r = imageData.data[i];
+  const g = imageData.data[i + 1];
+  const b = imageData.data[i + 2];
+  
+  if (r === undefined || g === undefined || b === undefined) {
+    throw new Error(`Invalid pixel coordinates: (${x}, ${y})`);
+  }
+  
+  return [r, g, b];
 }
