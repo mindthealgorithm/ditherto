@@ -5,6 +5,7 @@
  */
 
 import type { DitherAlgorithm, ColorRGB } from '../types.js';
+import { createImageDataCrossPlatform } from '../imageIO.js';
 
 /**
  * 4x4 Bayer threshold matrix
@@ -56,7 +57,7 @@ export const orderedAlgorithm: DitherAlgorithm = {
     }
     
     const { width, height } = data;
-    const result = new ImageData(new Uint8ClampedArray(data.data), width, height);
+    const result = createImageDataCrossPlatform(new Uint8ClampedArray(data.data), width, height);
     const pixels = result.data;
     
     // For simple ordered dithering, we'll use a different approach

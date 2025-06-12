@@ -8,6 +8,7 @@
  */
 
 import type { DitherAlgorithm, ColorRGB } from '../types.js';
+import { createImageDataCrossPlatform } from '../imageIO.js';
 
 /**
  * Find closest color in palette using Euclidean distance
@@ -48,7 +49,7 @@ export const atkinsonAlgorithm: DitherAlgorithm = {
     }
     
     const { width, height } = data;
-    const result = new ImageData(new Uint8ClampedArray(data.data), width, height);
+    const result = createImageDataCrossPlatform(new Uint8ClampedArray(data.data), width, height);
     const pixels = result.data;
     
     // Process each pixel with step size

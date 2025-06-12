@@ -255,3 +255,24 @@ export function validateImageDimensions(width: number, height: number): void {
     throw new Error(`Image dimensions must be integers: ${width}x${height}`);
   }
 }
+
+/**
+ * Create ImageData in a cross-platform way
+ */
+export function createImageDataCrossPlatform(
+  data: Uint8ClampedArray, 
+  width: number, 
+  height: number
+): ImageData {
+  if (typeof ImageData !== 'undefined') {
+    return new ImageData(data, width, height);
+  } else {
+    // Mock ImageData for Node environment
+    return {
+      data,
+      width,
+      height,
+      colorSpace: 'srgb' as const
+    } as ImageData;
+  }
+}
