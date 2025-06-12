@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ditherto - Browser Demo</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #00ff00;
+        }
+        
+        .container {
+            background: #111;
+            padding: 20px;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #00ff41;
+            text-shadow: 0 0 10px #00ff41;
+        }
+        
+        .demo-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+        
+        canvas {
+            border: 1px solid #555;
+            margin: 10px 5px;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+        }
+        
+        button {
+            background: #003300;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            border-radius: 3px;
+        }
+        
+        button:hover {
+            background: #004400;
+            box-shadow: 0 0 5px #00ff00;
+        }
+        
+        .controls {
+            margin: 15px 0;
+        }
+        
+        select, input {
+            background: #222;
+            color: #00ff00;
+            border: 1px solid #555;
+            padding: 5px;
+            font-family: inherit;
+        }
+        
+        .palette-preview {
+            display: inline-block;
+            margin: 2px;
+            border: 1px solid #555;
+        }
+        
+        .log {
+            background: #0a0a0a;
+            color: #888;
+            padding: 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 ditherto Browser Demo</h1>
+        
+        <div class="demo-section">
+            <h3>📸 Input Image</h3>
+            <input type="file" id="imageInput" accept="image/*">
+            <button onclick="createTestImage()">Create Test Gradient</button>
+            <br>
+            <canvas id="originalCanvas" width="200" height="200"></canvas>
+        </div>
+        
+        <div class="demo-section">
+            <h3>⚙️ Dithering Controls</h3>
+            <div class="controls">
+                <label>Algorithm: 
+                    <select id="algorithm">
+                        <option value="atkinson">Atkinson</option>
+                        <option value="floyd-steinberg">Floyd-Steinberg</option>
+                        <option value="ordered">Ordered (Bayer)</option>
+                    </select>
+                </label>
+                
+                <label>Palette: 
+                    <select id="palette">
+                        <option value="BW">Black & White</option>
+                        <option value="GAMEBOY">GameBoy Green</option>
+                        <option value="RGB">RGB Primaries</option>
+                        <option value="CGA_4">CGA 4-Color</option>
+                    </select>
+                </label>
+                
+                <label>Step: 
+                    <input type="number" id="step" value="1" min="1" max="8">
+                </label>
+                
+                <label>Width: 
+                    <input type="number" id="width" value="200" min="50" max="800">
+                </label>
+            </div>
+            
+            <button onclick="ditherImage()" id="ditherBtn">🎨 Apply Dithering</button>
+            
+            <div id="palettePreview"></div>
+        </div>
+        
+        <div class="demo-section">
+            <h3>🎯 Dithered Result</h3>
+            <canvas id="resultCanvas" width="200" height="200"></canvas>
+            <div id="resultInfo"></div>
+        </div>
+        
+        <div class="demo-section">
+            <h3>📊 Log</h3>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Note: In a real implementation, you'd import from the npm package
+        // import { ditherImage, PALETTES } from 'ditherto';
+        
+        // For this demo, we'll create a mock implementation
+        const PALETTES = {
+            BW: [[0,0,0], [255,255,255]],
+            GAMEBOY: [[15,56,15], [48,98,48], [139,172,15], [155,188,15]],
+            RGB: [[0,0,0], [255,0,0], [0,255,0], [0,0,255], [255,255,0], [255,0,255], [0,255,255], [255,255,255]],
+            CGA_4: [[0,0,0], [255,0,255], [0,255,255], [255,255,255]]
+        };
+
+        // Mock dithering function for demo
+        async function mockDitherImage(imageData, options) {
+            log(`🔄 Dithering ${imageData.width}x${imageData.height} image...`);
+            log(`Algorithm: ${options.algorithm}, Palette: ${options.palette?.length || 0} colors, Step: ${options.step || 1}`);
+            
+            // Simple mock dithering (just quantize to nearest palette color)
+            const result = new ImageData(imageData.width, imageData.height);
+            const palette = options.palette || PALETTES.BW;
+            
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                const r = imageData.data[i];
+                const g = imageData.data[i + 1];
+                const b = imageData.data[i + 2];
+                
+                // Find closest palette color (simple distance)
+                let closest = palette[0];
+                let minDist = Infinity;
+                
+                for (const color of palette) {
+                    const dist = Math.sqrt(
+                        Math.pow(r - color[0], 2) +
+                        Math.pow(g - color[1], 2) +
+                        Math.pow(b - color[2], 2)
+                    );
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = color;
+                    }
+                }
+                
+                result.data[i] = closest[0];
+                result.data[i + 1] = closest[1];
+                result.data[i + 2] = closest[2];
+                result.data[i + 3] = 255;
+            }
+            
+            log(`✅ Dithering complete!`);
+            return result;
+        }
+
+        window.ditherImage = async function() {
+            const canvas = document.getElementById('originalCanvas');
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            const algorithm = document.getElementById('algorithm').value;
+            const paletteKey = document.getElementById('palette').value;
+            const step = parseInt(document.getElementById('step').value);
+            const width = parseInt(document.getElementById('width').value);
+            
+            const options = {
+                algorithm,
+                palette: PALETTES[paletteKey],
+                step,
+                width
+            };
+            
+            try {
+                document.getElementById('ditherBtn').disabled = true;
+                const result = await mockDitherImage(imageData, options);
+                
+                const resultCanvas = document.getElementById('resultCanvas');
+                const resultCtx = resultCanvas.getContext('2d');
+                resultCanvas.width = result.width;
+                resultCanvas.height = result.height;
+                resultCtx.putImageData(result, 0, 0);
+                
+                document.getElementById('resultInfo').innerHTML = 
+                    `📐 ${result.width}x${result.height} pixels<br>🎨 ${options.palette.length} color palette`;
+                    
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            } finally {
+                document.getElementById('ditherBtn').disabled = false;
+            }
+        };
+
+        window.createTestImage = function() {
+            const canvas = document.getElementById('originalCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Create a test gradient
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#000000');
+            gradient.addColorStop(0.33, '#666666');
+            gradient.addColorStop(0.66, '#cccccc');
+            gradient.addColorStop(1, '#ffffff');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add some colored circles for testing
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00'];
+            colors.forEach((color, i) => {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(50 + i * 30, 100, 20, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            log('📸 Test gradient image created');
+            updatePalettePreview();
+        };
+
+        function updatePalettePreview() {
+            const paletteKey = document.getElementById('palette').value;
+            const palette = PALETTES[paletteKey];
+            const preview = document.getElementById('palettePreview');
+            
+            preview.innerHTML = 'Palette: ' + palette.map(color => 
+                `<div class="palette-preview" style="width:20px; height:20px; background:rgb(${color.join(',')})"></div>`
+            ).join('');
+        }
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${time}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Set up event listeners
+        document.getElementById('palette').addEventListener('change', updatePalettePreview);
+        
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.getElementById('originalCanvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = Math.min(img.width, 400);
+                    canvas.height = Math.min(img.height, 400);
+                    
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    log(`📸 Loaded image: ${canvas.width}x${canvas.height}`);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Initialize
+        log('🎨 ditherto demo initialized');
+        log('💡 Upload an image or create a test gradient to get started!');
+        updatePalettePreview();
+    </script>
+</body>
+</html>

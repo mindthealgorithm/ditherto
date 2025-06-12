@@ -16,6 +16,9 @@ export type {
 export { ditherImage } from './imageProcessor.js';
 export { generatePalette } from './palette/extract.js';
 
+// Palettes
+export { PALETTES } from './palette/utils.js';
+
 // Image I/O utilities
 export { 
   loadImageData, 
