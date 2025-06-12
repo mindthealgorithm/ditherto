@@ -2,6 +2,7 @@
 // ABOUTME: Extracts unique colors from reference images for dithering
 
 import type { InputImageSource, ColorRGB } from '../types.js';
+import { loadImageData } from '../imageIO.js';
 
 /**
  * Extract unique colors from a PNG image to create a palette
@@ -11,91 +12,6 @@ export async function generatePalette(input: InputImageSource): Promise<ColorRGB
   return extractColorsFromImageData(imageData);
 }
 
-/**
- * Load image data from various input sources
- */
-async function loadImageData(input: InputImageSource): Promise<ImageData> {
-  if (typeof input === 'string') {
-    // File path - Node.js environment
-    return loadImageDataFromPath(input);
-  }
-  if (input instanceof HTMLImageElement) {
-    // Browser environment
-    return loadImageDataFromHTMLImage(input);
-  }
-  if (input instanceof Blob || input instanceof File) {
-    // Browser environment - convert to HTMLImageElement
-    const url = URL.createObjectURL(input);
-    try {
-      const img = new Image();
-      img.src = url;
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-      return loadImageDataFromHTMLImage(img);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
-  if (input instanceof ArrayBuffer || input instanceof Uint8Array) {
-    // Convert to Blob first
-    const blob = new Blob([input]);
-    return loadImageData(blob);
-  }
-  
-  throw new Error('Unsupported input image source type');
-}
-
-/**
- * Load image data from file path (Node.js)
- */
-async function loadImageDataFromPath(path: string): Promise<ImageData> {
-  // For Node.js environment, we need to use canvas
-  if (typeof window !== 'undefined') {
-    throw new Error('File path loading not supported in browser environment');
-  }
-  
-  try {
-    // Dynamic import for Node.js-only dependency
-    const { readFile } = await import('node:fs/promises');
-    const canvasPackageName = 'canvas';
-    const canvasModule = await import(canvasPackageName) as any;
-    const { createCanvas, loadImage } = canvasModule;
-    
-    const imageBuffer = await readFile(path);
-    const image = await loadImage(imageBuffer);
-    
-    const canvas = createCanvas(image.width, image.height);
-    const ctx = canvas.getContext('2d');
-    
-    ctx.drawImage(image, 0, 0);
-    return ctx.getImageData(0, 0, image.width, image.height);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('Cannot resolve module')) {
-      throw new Error('canvas package required for Node.js image loading. Install with: npm install canvas');
-    }
-    throw new Error(`Failed to load image from path: ${error}`);
-  }
-}
-
-/**
- * Load image data from HTMLImageElement (Browser)
- */
-function loadImageDataFromHTMLImage(img: HTMLImageElement): ImageData {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  
-  if (!ctx) {
-    throw new Error('Failed to get 2d context from canvas');
-  }
-  
-  canvas.width = img.width;
-  canvas.height = img.height;
-  
-  ctx.drawImage(img, 0, 0);
-  return ctx.getImageData(0, 0, img.width, img.height);
-}
 
 /**
  * Extract unique colors from ImageData

@@ -37,7 +37,18 @@ export function createImageData(colors: ColorRGB[][], width?: number, height?: n
     }
   }
 
-  return new ImageData(data, w, h);
+  // Create ImageData, with fallback for Node environment
+  if (typeof ImageData !== 'undefined') {
+    return new ImageData(data, w, h);
+  } else {
+    // Mock ImageData for Node environment
+    return {
+      data,
+      width: w,
+      height: h,
+      colorSpace: 'srgb' as const
+    } as ImageData;
+  }
 }
 
 /**

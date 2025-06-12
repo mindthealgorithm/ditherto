@@ -16,6 +16,15 @@ export type {
 export { ditherImage } from './imageProcessor.js';
 export { generatePalette } from './palette/extract.js';
 
+// Image I/O utilities
+export { 
+  loadImageData, 
+  calculateResizeDimensions, 
+  resizeImageData, 
+  validateImageDimensions 
+} from './imageIO.js';
+export type { ResizeOptions } from './imageIO.js';
+
 // Algorithm registry
 export { algorithms } from './algorithmRegistry.js';
 
