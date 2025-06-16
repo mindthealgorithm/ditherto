@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ditherto Browser Test Fixtures</title>
+</head>
+<body>
+    <!-- Basic ditherto image -->
+    <img class="ditherto" src="test-image.jpg" alt="Basic dithering test">
+    
+    <!-- Image with algorithm specified -->
+    <img class="ditherto" 
+         src="test-image2.jpg" 
+         alt="Floyd-Steinberg test"
+         data-algorithm="floyd-steinberg">
+    
+    <!-- Image with size constraints -->
+    <img class="ditherto" 
+         src="test-image3.jpg" 
+         alt="Size constraint test"
+         data-width="300"
+         data-height="200">
+    
+    <!-- Image with all attributes -->
+    <img class="ditherto complex-test" 
+         id="complex-dither"
+         src="test-image4.jpg" 
+         alt="Complex dithering test"
+         data-algorithm="atkinson"
+         data-width="400"
+         data-height="300"
+         data-step="2"
+         data-quality="0.8"
+         data-palette='[[255,0,0],[0,255,0],[0,0,255]]'>
+    
+    <!-- Image with palette from another image -->
+    <img class="ditherto" 
+         src="test-image5.jpg" 
+         alt="Palette extraction test"
+         data-palette-img="palette-source.png">
+    
+    <!-- Custom selector test -->
+    <img class="custom-dither" 
+         src="test-image6.jpg" 
+         alt="Custom selector test"
+         data-algorithm="ordered">
+    
+    <!-- Image without ditherto class (should be ignored) -->
+    <img src="regular-image.jpg" alt="Regular image">
+    
+    <!-- Image with invalid data attributes -->
+    <img class="ditherto" 
+         src="test-invalid.jpg" 
+         alt="Invalid attributes test"
+         data-width="not-a-number"
+         data-step="invalid"
+         data-palette="bad-json">
+    
+    <!-- Image with nested parent -->
+    <div class="image-container">
+        <figure>
+            <img class="ditherto" 
+                 src="nested-image.jpg" 
+                 alt="Nested image test"
+                 data-algorithm="atkinson">
+            <figcaption>Nested image test</figcaption>
+        </figure>
+    </div>
+</body>
+</html>
