@@ -66,13 +66,13 @@ This plan follows TDD principles: write tests first, implement to make tests pas
   - Implement browser.ts module
 
 ## Phase 6: CLI Interface
-- [ ] **Test & implement CLI argument parsing**
+- [x] **Test & implement CLI argument parsing**
   - Write tests for command-line flag parsing
   - Test flag validation and error handling
   - Test help text generation
   - Implement CLI argument processing
 
-- [ ] **Test & implement CLI file operations**
+- [x] **Test & implement CLI file operations**
   - Write tests for batch file processing
   - Test input/output file handling
   - Test CLI error reporting
