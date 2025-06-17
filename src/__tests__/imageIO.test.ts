@@ -14,20 +14,20 @@ import { createImageData } from './testUtils.js';
 // Mock browser APIs for Node environment
 beforeAll(() => {
   if (typeof globalThis.HTMLImageElement === 'undefined') {
-    globalThis.HTMLImageElement = class HTMLImageElement {} as any;
+    globalThis.HTMLImageElement = class HTMLImageElement {} as typeof HTMLImageElement;
   }
   if (typeof globalThis.Blob === 'undefined') {
-    globalThis.Blob = class Blob {} as any;
+    globalThis.Blob = class Blob {} as typeof Blob;
   }
   if (typeof globalThis.File === 'undefined') {
-    globalThis.File = class File {} as any;
+    globalThis.File = class File {} as typeof File;
   }
 });
 
 describe('loadImageData', () => {
   it('should reject unsupported input types', async () => {
-    await expect(loadImageData({} as any)).rejects.toThrow('Unsupported input image source type');
-    await expect(loadImageData(123 as any)).rejects.toThrow('Unsupported input image source type');
+    await expect(loadImageData({} as InputImageSource)).rejects.toThrow('Unsupported input image source type');
+    await expect(loadImageData(123 as InputImageSource)).rejects.toThrow('Unsupported input image source type');
   });
 
   // Note: File path testing requires canvas package which we're mocking in other tests

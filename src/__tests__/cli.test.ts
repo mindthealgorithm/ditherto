@@ -78,17 +78,19 @@ describe('CLI argument parsing', () => {
     });
 
     it('should handle help flag', () => {
-      const args = ['--help'];
+      const args = ['input.png', '--help'];
       const result = parseCliArgs(args);
       
       expect(result.help).toBe(true);
+      expect(result.input).toBe('input.png');
     });
 
     it('should handle version flag', () => {
-      const args = ['--version'];
+      const args = ['input.png', '--version'];
       const result = parseCliArgs(args);
       
       expect(result.version).toBe(true);
+      expect(result.input).toBe('input.png');
     });
 
     it('should handle short flags', () => {
@@ -340,9 +342,7 @@ describe('error handling', () => {
   it('should handle missing input file gracefully', () => {
     const args = [];
     
-    const result = parseCliArgs(args);
-    expect(result.input).toBeUndefined();
-    // Validation should happen in validateCliArgs, not parseCliArgs
+    expect(() => parseCliArgs(args)).toThrow('Input file is required');
   });
 
   it('should handle invalid numeric arguments', () => {

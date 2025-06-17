@@ -21,7 +21,7 @@ export function findClosestColor(color: ColorRGB, palette: ColorRGB[]): ColorRGB
     throw new Error('Palette cannot be empty');
   }
   
-  let minDistance = Infinity;
+  let minDistance = Number.POSITIVE_INFINITY;
   let closest = palette[0]!; // Non-null assertion since we checked length > 0
   
   for (const paletteColor of palette) {

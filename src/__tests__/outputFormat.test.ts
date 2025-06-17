@@ -125,8 +125,8 @@ describe('output format conversion', () => {
 
     it('should detect browser environment and return ImageData', () => {
       // Mock browser environment
-      const originalWindow = (global as any).window;
-      (global as any).window = {};
+      const originalWindow = (global as { window?: unknown }).window;
+      (global as { window?: unknown }).window = {};
       
       const result = formatForEnvironment(testImage);
       
@@ -136,13 +136,13 @@ describe('output format conversion', () => {
       expect(result).toHaveProperty('height');
       
       // Restore original
-      (global as any).window = originalWindow;
+      (global as { window?: unknown }).window = originalWindow;
     });
 
     it('should detect Node environment and return Uint8Array', () => {
       // Ensure Node environment (window undefined)
-      const originalWindow = (global as any).window;
-      delete (global as any).window;
+      const originalWindow = (global as { window?: unknown }).window;
+      (global as { window?: unknown }).window = undefined;
       
       const result = formatForEnvironment(testImage);
       
@@ -150,7 +150,7 @@ describe('output format conversion', () => {
       expect(result).not.toBe(testImage);
       
       // Restore original
-      (global as any).window = originalWindow;
+      (global as { window?: unknown }).window = originalWindow;
     });
 
     it('should allow explicit format override', () => {

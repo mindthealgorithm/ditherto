@@ -6,13 +6,16 @@
  */
 export function convertToUint8Array(imageData: ImageData): Uint8Array {
   const { data, width, height } = imageData;
+  if (width === undefined || height === undefined) {
+    throw new Error('ImageData width and height must be defined');
+  }
   const rgbData = new Uint8Array(width * height * 3);
   
   // Convert RGBA to RGB
   for (let i = 0, j = 0; i < data.length; i += 4, j += 3) {
-    rgbData[j] = data[i];       // Red
-    rgbData[j + 1] = data[i + 1]; // Green
-    rgbData[j + 2] = data[i + 2]; // Blue
+    rgbData[j] = data[i]!;       // Red
+    rgbData[j + 1] = data[i + 1]!; // Green
+    rgbData[j + 2] = data[i + 2]!; // Blue
     // Skip alpha channel (data[i + 3])
   }
   
@@ -51,10 +54,9 @@ export function formatForEnvironment(
   if (typeof window !== 'undefined') {
     // Browser environment - return ImageData
     return imageData;
-  } else {
-    // Node environment - return Uint8Array
-    return convertToUint8Array(imageData);
   }
+  // Node environment - return Uint8Array
+  return convertToUint8Array(imageData);
 }
 
 /**

@@ -7,11 +7,11 @@ import { createImageData, createSolidImageData, createGradient, TEST_PALETTES, g
 import type { ColorRGB, DitherOptions } from '../types.js';
 
 // Helper to check result type in cross-platform way
-function isImageDataLike(result: any): boolean {
+function isImageDataLike(result: unknown): boolean {
   return result && typeof result === 'object' && 'data' in result && 'width' in result && 'height' in result;
 }
 
-function isUint8ArrayLike(result: any): boolean {
+function isUint8ArrayLike(result: unknown): boolean {
   return result instanceof Uint8Array;
 }
 
@@ -425,10 +425,10 @@ describe('ditherImage pipeline', () => {
   describe('error handling', () => {
     it('should handle invalid algorithm names', async () => {
       const testImage = createGradient();
-      const options: DitherOptions = {
-        algorithm: 'invalid-algorithm' as any,
+      const options = {
+        algorithm: 'invalid-algorithm',
         palette: TEST_PALETTES.BW
-      };
+      } as DitherOptions;
       
       // TODO: Replace with actual implementation - should reject invalid algorithm
       await expect(ditherImage(testImage, options)).rejects.toThrow();
@@ -446,7 +446,7 @@ describe('ditherImage pipeline', () => {
     });
 
     it('should handle invalid input types', async () => {
-      const invalidInput = null as any;
+      const invalidInput = null as InputImageSource;
       
       // TODO: Replace with actual implementation - should reject null input
       await expect(ditherImage(invalidInput)).rejects.toThrow();

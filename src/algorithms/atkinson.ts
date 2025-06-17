@@ -37,6 +37,114 @@ function findClosestColor(pixel: ColorRGB, palette: ColorRGB[]): ColorRGB {
   return closest;
 }
 
+/**
+ * Apply error to a pixel with bounds checking
+ */
+function applyError(
+  pixels: Uint8ClampedArray,
+  index: number,
+  errorR: number,
+  errorG: number,
+  errorB: number,
+  factor: number
+): void {
+  pixels[index] = Math.max(0, Math.min(255, (pixels[index] ?? 0) + errorR * factor));
+  pixels[index + 1] = Math.max(0, Math.min(255, (pixels[index + 1] ?? 0) + errorG * factor));
+  pixels[index + 2] = Math.max(0, Math.min(255, (pixels[index + 2] ?? 0) + errorB * factor));
+}
+
+/**
+ * Distribute error using Atkinson pattern
+ */
+function distributeAtkinsonError(
+  pixels: Uint8ClampedArray,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  errorR: number,
+  errorG: number,
+  errorB: number,
+  step: number
+): void {
+  const errorFactor = 1/8;
+  
+  // Right pixel
+  if (x + step < width) {
+    const rightI = (y * width + (x + step)) * 4;
+    applyError(pixels, rightI, errorR, errorG, errorB, errorFactor);
+  }
+  
+  // Right+step pixel  
+  if (x + step * 2 < width) {
+    const right2I = (y * width + (x + step * 2)) * 4;
+    applyError(pixels, right2I, errorR, errorG, errorB, errorFactor);
+  }
+  
+  // Below-left pixel
+  if (y + step < height && x - step >= 0) {
+    const belowLeftI = ((y + step) * width + (x - step)) * 4;
+    applyError(pixels, belowLeftI, errorR, errorG, errorB, errorFactor);
+  }
+  
+  // Below pixel
+  if (y + step < height) {
+    const belowI = ((y + step) * width + x) * 4;
+    applyError(pixels, belowI, errorR, errorG, errorB, errorFactor);
+  }
+  
+  // Below-right pixel
+  if (y + step < height && x + step < width) {
+    const belowRightI = ((y + step) * width + (x + step)) * 4;
+    applyError(pixels, belowRightI, errorR, errorG, errorB, errorFactor);
+  }
+  
+  // Below+step+step pixel  
+  if (y + step * 2 < height) {
+    const below2I = ((y + step * 2) * width + x) * 4;
+    applyError(pixels, below2I, errorR, errorG, errorB, errorFactor);
+  }
+}
+
+/**
+ * Process a single pixel with Atkinson dithering
+ */
+function processPixel(
+  pixels: Uint8ClampedArray,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  palette: ColorRGB[],
+  step: number
+): void {
+  const i = (y * width + x) * 4;
+  
+  // Get current pixel - use non-null assertion since we know indices are valid
+  const oldPixel: ColorRGB = [
+    pixels[i]!,
+    pixels[i + 1]!, 
+    pixels[i + 2]!
+  ];
+  
+  // Find closest palette color
+  const newPixel = findClosestColor(oldPixel, palette);
+  
+  // Set new pixel value
+  pixels[i] = newPixel[0];
+  pixels[i + 1] = newPixel[1];
+  pixels[i + 2] = newPixel[2];
+  pixels[i + 3] = 255; // Alpha
+  
+  // Calculate quantization error
+  const errorR = oldPixel[0] - newPixel[0];
+  const errorG = oldPixel[1] - newPixel[1];
+  const errorB = oldPixel[2] - newPixel[2];
+  
+  // Distribute error using Atkinson pattern
+  distributeAtkinsonError(pixels, x, y, width, height, errorR, errorG, errorB, step);
+}
+
 export const atkinsonAlgorithm: DitherAlgorithm = {
   name: 'atkinson',
   
@@ -55,74 +163,7 @@ export const atkinsonAlgorithm: DitherAlgorithm = {
     // Process each pixel with step size
     for (let y = 0; y < height; y += step) {
       for (let x = 0; x < width; x += step) {
-        const i = (y * width + x) * 4;
-        
-        // Get current pixel - use non-null assertion since we know indices are valid
-        const oldPixel: ColorRGB = [
-          pixels[i]!,
-          pixels[i + 1]!, 
-          pixels[i + 2]!
-        ];
-        
-        // Find closest palette color
-        const newPixel = findClosestColor(oldPixel, palette);
-        
-        // Set new pixel value
-        pixels[i] = newPixel[0];
-        pixels[i + 1] = newPixel[1];
-        pixels[i + 2] = newPixel[2];
-        pixels[i + 3] = 255; // Alpha
-        
-        // Calculate quantization error
-        const errorR = oldPixel[0] - newPixel[0];
-        const errorG = oldPixel[1] - newPixel[1];
-        const errorB = oldPixel[2] - newPixel[2];
-        
-        // Distribute error using Atkinson pattern (1/8 each)
-        const errorFactor = 1/8;
-        
-        // Helper function to safely apply error
-        const applyError = (index: number, rError: number, gError: number, bError: number) => {
-          pixels[index] = Math.max(0, Math.min(255, (pixels[index] ?? 0) + rError * errorFactor));
-          pixels[index + 1] = Math.max(0, Math.min(255, (pixels[index + 1] ?? 0) + gError * errorFactor));
-          pixels[index + 2] = Math.max(0, Math.min(255, (pixels[index + 2] ?? 0) + bError * errorFactor));
-        };
-        
-        // Right pixel
-        if (x + step < width) {
-          const rightI = (y * width + (x + step)) * 4;
-          applyError(rightI, errorR, errorG, errorB);
-        }
-        
-        // Right+step pixel  
-        if (x + step * 2 < width) {
-          const right2I = (y * width + (x + step * 2)) * 4;
-          applyError(right2I, errorR, errorG, errorB);
-        }
-        
-        // Below-left pixel
-        if (y + step < height && x - step >= 0) {
-          const belowLeftI = ((y + step) * width + (x - step)) * 4;
-          applyError(belowLeftI, errorR, errorG, errorB);
-        }
-        
-        // Below pixel
-        if (y + step < height) {
-          const belowI = ((y + step) * width + x) * 4;
-          applyError(belowI, errorR, errorG, errorB);
-        }
-        
-        // Below-right pixel
-        if (y + step < height && x + step < width) {
-          const belowRightI = ((y + step) * width + (x + step)) * 4;
-          applyError(belowRightI, errorR, errorG, errorB);
-        }
-        
-        // Below+step+step pixel  
-        if (y + step * 2 < height) {
-          const below2I = ((y + step * 2) * width + x) * 4;
-          applyError(below2I, errorR, errorG, errorB);
-        }
+        processPixel(pixels, x, y, width, height, palette, step);
       }
     }
     

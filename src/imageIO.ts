@@ -41,7 +41,7 @@ async function loadImageDataFromPath(path: string): Promise<ImageData> {
     // Dynamic import for Node.js-only dependency
     const { readFile } = await import('node:fs/promises');
     const canvasPackageName = 'canvas';
-    const canvasModule = await import(canvasPackageName) as any;
+    const canvasModule = await import(canvasPackageName) as { createCanvas: (width: number, height: number) => HTMLCanvasElement; loadImage: (buffer: Buffer) => Promise<HTMLImageElement> };
     const { createCanvas, loadImage } = canvasModule;
     
     const imageBuffer = await readFile(path);
@@ -216,11 +216,11 @@ export function resizeImageData(
 /**
  * Create canvas in Node.js environment
  */
-function createNodeCanvas(width: number, height: number): any {
+function createNodeCanvas(width: number, height: number): { width: number; height: number; getContext: (type: string) => CanvasRenderingContext2D | null } | undefined {
   try {
-    const canvasPackageName = 'canvas';
-    // This is a sync require for the already-imported canvas module
-    const { createCanvas } = eval(`require('${canvasPackageName}')`);
+    // Use dynamic import instead of eval
+    const canvasModule = require('canvas');
+    const { createCanvas } = canvasModule;
     return createCanvas(width, height);
   } catch {
     // Return a mock canvas for testing
@@ -266,13 +266,12 @@ export function createImageDataCrossPlatform(
 ): ImageData {
   if (typeof ImageData !== 'undefined') {
     return new ImageData(data, width, height);
-  } else {
-    // Mock ImageData for Node environment
-    return {
-      data,
-      width,
-      height,
-      colorSpace: 'srgb' as const
-    } as ImageData;
   }
+  // Mock ImageData for Node environment
+  return {
+    data,
+    width,
+    height,
+    colorSpace: 'srgb' as const
+  } as ImageData;
 }

@@ -12,6 +12,60 @@ import { PALETTES } from './palette/utils.js';
 import { formatForEnvironment, encodeWithQuality } from './outputFormat.js';
 
 /**
+ * Load or convert input to ImageData
+ */
+async function loadInputImageData(input: InputImageSource): Promise<ImageData> {
+  if (input && typeof input === 'object' && 'data' in input && 'width' in input && 'height' in input && 'colorSpace' in input) {
+    // Already ImageData
+    return input as ImageData;
+  }
+  return loadImageData(input);
+}
+
+/**
+ * Apply resize if requested in options
+ */
+function applyResize(imageData: ImageData, options: DitherOptions): ImageData {
+  if (!options.width && !options.height) {
+    return imageData;
+  }
+  
+  const resizeOptions: { width?: number; height?: number } = {};
+  if (options.width) resizeOptions.width = options.width;
+  if (options.height) resizeOptions.height = options.height;
+  return resizeImageData(imageData, resizeOptions);
+}
+
+/**
+ * Determine palette from options
+ */
+async function determinePalette(options: DitherOptions): Promise<ColorRGB[]> {
+  if (options.palette) {
+    // Explicit palette has highest priority
+    return options.palette;
+  }
+  
+  if (options.paletteImg) {
+    // Extract palette from provided image
+    return generatePalette(options.paletteImg);
+  }
+  
+  // Default to black/white palette
+  return [...PALETTES.BW];
+}
+
+/**
+ * Get dithering algorithm by name
+ */
+function getAlgorithm(algorithmName: string) {
+  const algorithm = algorithms.get(algorithmName);
+  if (!algorithm) {
+    throw new Error(`Unknown algorithm: ${algorithmName}`);
+  }
+  return algorithm;
+}
+
+/**
  * Main dithering function - processes an image through resize → dither pipeline
  */
 export async function ditherImage(
@@ -22,47 +76,21 @@ export async function ditherImage(
   validateOptions(options);
   
   // Step 1: Load image data from input source
-  let imageData: ImageData;
-  if (input && typeof input === 'object' && 'data' in input) {
-    // Already ImageData
-    imageData = input as ImageData;
-  } else {
-    imageData = await loadImageData(input);
-  }
+  const imageData = await loadInputImageData(input);
   
   // Step 2: Resize if requested
-  const resizeOptions = {
-    width: options.width,
-    height: options.height
-  };
-  
-  if (resizeOptions.width || resizeOptions.height) {
-    imageData = resizeImageData(imageData, resizeOptions);
-  }
+  const resizedData = applyResize(imageData, options);
   
   // Step 3: Determine palette
-  let palette: ColorRGB[];
-  if (options.palette) {
-    // Explicit palette has highest priority
-    palette = options.palette;
-  } else if (options.paletteImg) {
-    // Extract palette from provided image
-    palette = await generatePalette(options.paletteImg);
-  } else {
-    // Default to black/white palette
-    palette = PALETTES.BW;
-  }
+  const palette = await determinePalette(options);
   
   // Step 4: Get algorithm (default to atkinson)
   const algorithmName = options.algorithm || 'atkinson';
-  const algorithm = algorithms.get(algorithmName);
-  if (!algorithm) {
-    throw new Error(`Unknown algorithm: ${algorithmName}`);
-  }
+  const algorithm = getAlgorithm(algorithmName);
   
   // Step 5: Apply dithering
   const step = options.step || 1;
-  const ditheredData = algorithm.apply(imageData, palette, step);
+  const ditheredData = algorithm.apply(resizedData, palette, step);
   
   // Step 6: Apply quality encoding if specified
   const qualityProcessedData = options.quality !== undefined 

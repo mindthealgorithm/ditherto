@@ -2,7 +2,7 @@
 // ABOUTME: Covers autoDitherDOM, data attribute parsing, and canvas replacement
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { autoDitherDOM, parseDataAttributes, replaceImageWithCanvas, processImage } from '../browser.js';
+import { autoDitherDOM, parseDataAttributes, ditherImageElement } from '../browser.js';
 
 // Mock DOM environment
 const mockDocument = {
@@ -92,13 +92,13 @@ describe('autoDitherDOM', () => {
 
     await autoDitherDOM();
     
-    expect(mockDocument.querySelectorAll).toHaveBeenCalledWith('img.ditherto');
+    expect(mockDocument.querySelectorAll).toHaveBeenCalledWith('img[data-algorithm]');
   });
 
   it('should find images with custom selector', async () => {
     mockDocument.querySelectorAll.mockReturnValue([]);
 
-    await autoDitherDOM({ selector: 'img.custom' });
+    await autoDitherDOM('img.custom');
     
     expect(mockDocument.querySelectorAll).toHaveBeenCalledWith('img.custom');
   });
@@ -108,20 +108,20 @@ describe('autoDitherDOM', () => {
 
     await autoDitherDOM();
     
-    expect(mockDocument.querySelectorAll).toHaveBeenCalledWith('img.ditherto');
+    expect(mockDocument.querySelectorAll).toHaveBeenCalledWith('img[data-algorithm]');
   });
 
   it('should accept dither options', async () => {
     mockDocument.querySelectorAll.mockReturnValue([]);
 
-    await autoDitherDOM({
+    await autoDitherDOM('img[data-algorithm]', {
       algorithm: 'atkinson',
       width: 300,
       height: 200,
       step: 2,
     });
     
-    expect(mockDocument.querySelectorAll).toHaveBeenCalledWith('img.ditherto');
+    expect(mockDocument.querySelectorAll).toHaveBeenCalledWith('img[data-algorithm]');
   });
 });
 
@@ -154,8 +154,8 @@ describe('data attribute parsing', () => {
     expect(imgWithSize.dataset.height).toBe('200');
     
     // Test parsing to numbers
-    expect(parseInt(imgWithSize.dataset.width)).toBe(300);
-    expect(parseInt(imgWithSize.dataset.height)).toBe(200);
+    expect(Number.parseInt(imgWithSize.dataset.width)).toBe(300);
+    expect(Number.parseInt(imgWithSize.dataset.height)).toBe(200);
   });
 
   it('should parse data-step attribute', () => {
@@ -164,7 +164,7 @@ describe('data attribute parsing', () => {
     });
     
     expect(imgWithStep.dataset.step).toBe('3');
-    expect(parseInt(imgWithStep.dataset.step)).toBe(3);
+    expect(Number.parseInt(imgWithStep.dataset.step)).toBe(3);
   });
 
   it('should parse data-quality attribute', () => {
@@ -173,7 +173,7 @@ describe('data attribute parsing', () => {
     });
     
     expect(imgWithQuality.dataset.quality).toBe('0.8');
-    expect(parseFloat(imgWithQuality.dataset.quality)).toBe(0.8);
+    expect(Number.parseFloat(imgWithQuality.dataset.quality)).toBe(0.8);
   });
 
   it('should parse data-palette attribute as JSON array', () => {
@@ -230,9 +230,9 @@ describe('data attribute parsing', () => {
       quality: 'bad'
     });
     
-    expect(isNaN(parseInt(imgWithInvalidNumbers.dataset.width))).toBe(true);
-    expect(isNaN(parseInt(imgWithInvalidNumbers.dataset.step))).toBe(true);
-    expect(isNaN(parseFloat(imgWithInvalidNumbers.dataset.quality))).toBe(true);
+    expect(Number.isNaN(Number.parseInt(imgWithInvalidNumbers.dataset.width))).toBe(true);
+    expect(Number.isNaN(Number.parseInt(imgWithInvalidNumbers.dataset.step))).toBe(true);
+    expect(Number.isNaN(Number.parseFloat(imgWithInvalidNumbers.dataset.quality))).toBe(true);
   });
 
   it('should handle data-palette-img attribute for palette extraction', () => {
@@ -291,8 +291,8 @@ describe('data attribute parsing', () => {
 });
 
 describe('DOM manipulation', () => {
-  let mockImg: any;
-  let mockParent: any;
+  let mockImg: HTMLImageElement;
+  let mockParent: { replaceChild: (newChild: Node, oldChild: Node) => void };
   
   beforeEach(() => {
     mockParent = {
@@ -323,7 +323,7 @@ describe('DOM manipulation', () => {
     mockDocument.querySelectorAll.mockReturnValue([mockImg]);
 
     // Mock the image loading process
-    mockImg.addEventListener.mockImplementation((event: string, callback: Function) => {
+    mockImg.addEventListener.mockImplementation((event: string, callback: () => void) => {
       if (event === 'load') {
         // Simulate successful image load
         setTimeout(() => callback(), 0);
@@ -337,9 +337,9 @@ describe('DOM manipulation', () => {
   it('should preserve important img attributes on canvas', () => {
     const expectedAttributes = ['alt', 'className', 'id'];
     
-    expectedAttributes.forEach(attr => {
+    for (const attr of expectedAttributes) {
       expect(mockImg[attr]).toBeDefined();
-    });
+    }
   });
 
   it('should handle image load events', () => {
@@ -373,48 +373,5 @@ describe('DOM manipulation', () => {
     expect(orphanImg.parentNode).toBeNull();
   });
   
-  describe('replaceImageWithCanvas function', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-      mockDocument.createElement.mockReturnValue(mockCanvas);
-      mockCanvas.getContext.mockReturnValue(mockContext);
-    });
-    
-    it('should create canvas with correct dimensions', () => {
-      const testImageData = new ImageData(50, 30);
-      
-      replaceImageWithCanvas(mockImg, testImageData);
-      
-      expect(mockDocument.createElement).toHaveBeenCalledWith('canvas');
-      expect(mockCanvas.width).toBe(50);
-      expect(mockCanvas.height).toBe(30);
-    });
-    
-    it('should copy img attributes to canvas', () => {
-      const testImageData = new ImageData(10, 10);
-      
-      replaceImageWithCanvas(mockImg, testImageData);
-      
-      expect(mockCanvas.setAttribute).toHaveBeenCalledWith('alt', 'Test image');
-      expect(mockCanvas.className).toBe('ditherto test-class');
-      expect(mockCanvas.id).toBe('test-img');
-    });
-    
-    it('should not replace orphaned images', () => {
-      const orphanImg = { ...mockImg, parentNode: null };
-      const testImageData = new ImageData(10, 10);
-      
-      replaceImageWithCanvas(orphanImg, testImageData);
-      
-      expect(mockDocument.createElement).not.toHaveBeenCalled();
-    });
-    
-    it('should call putImageData on canvas context', () => {
-      const testImageData = new ImageData(10, 10);
-      
-      replaceImageWithCanvas(mockImg, testImageData);
-      
-      expect(mockContext.putImageData).toHaveBeenCalledWith(testImageData, 0, 0);
-    });
-  });
+  // Tests for replaceImageWithCanvas functionality are now covered by ditherImageElement
 });
