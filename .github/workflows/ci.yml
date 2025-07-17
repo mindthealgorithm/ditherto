@@ -23,13 +23,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-
+          # Don't cache npm to avoid optional dependency issues
+          
       - name: Update npm
         run: npm install -g npm@latest
 
-      - name: Install dependencies
-        run: npm ci --include=optional
+      - name: Clear npm cache and reinstall dependencies
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
 
       - name: Type check
         run: npm run typecheck
@@ -60,13 +62,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          # Don't cache npm to avoid optional dependency issues
 
       - name: Update npm
         run: npm install -g npm@latest
 
-      - name: Install dependencies
-        run: npm ci --include=optional
+      - name: Clear npm cache and reinstall dependencies
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
 
       - name: Build
         run: npm run build
