@@ -1,10 +1,52 @@
 // ABOUTME: Tests for the main ditherImage pipeline function
 // ABOUTME: Covers integration of resize → dither → output formatting
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ditherImage } from '../imageProcessor.js';
 import { createImageData, createSolidImageData, createGradient, TEST_PALETTES, getPixel } from './testUtils.js';
 import type { ColorRGB, DitherOptions } from '../types.js';
+
+// Mock @napi-rs/canvas for tests
+vi.mock('@napi-rs/canvas', () => ({
+  createCanvas: (width: number, height: number) => {
+    const canvas = {
+      width,
+      height,
+      getContext: (type: string) => {
+        if (type === '2d') {
+          const data = new Uint8ClampedArray(width * height * 4);
+          return {
+            putImageData: (imageData: ImageData, x: number, y: number) => {
+              // Copy imageData to internal storage
+              data.set(imageData.data);
+            },
+            drawImage: (source: any, dx: number, dy: number, dw?: number, dh?: number) => {
+              // Mock drawImage - just fill with some test data
+              for (let i = 0; i < data.length; i += 4) {
+                data[i] = 128;     // R
+                data[i + 1] = 128; // G  
+                data[i + 2] = 128; // B
+                data[i + 3] = 255; // A
+              }
+            },
+            getImageData: (x: number, y: number, w: number, h: number) => {
+              return {
+                data: data.slice(0, w * h * 4),
+                width: w,
+                height: h,
+                colorSpace: 'srgb' as const
+              };
+            },
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'low' as const
+          };
+        }
+        return null;
+      }
+    };
+    return canvas;
+  }
+}));
 
 // Helper to check result type in cross-platform way
 function isImageDataLike(result: unknown): boolean {

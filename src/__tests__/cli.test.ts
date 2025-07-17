@@ -23,6 +23,16 @@ vi.mock('../imageProcessor.js', () => ({
   ditherImage: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
 }));
 
+vi.mock('../imageIO.js', () => ({
+  loadImageData: vi.fn().mockResolvedValue({
+    data: new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]),
+    width: 2,
+    height: 2,
+    colorSpace: 'srgb'
+  }),
+  calculateResizeDimensions: vi.fn().mockReturnValue({ width: 2, height: 2 })
+}));
+
 describe('CLI argument parsing', () => {
   beforeEach(() => {
     vi.clearAllMocks();

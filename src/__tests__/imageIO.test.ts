@@ -95,16 +95,16 @@ describe('calculateResizeDimensions', () => {
 });
 
 describe('resizeImageData', () => {
-  it('should return original ImageData when no resize needed', () => {
+  it('should return original ImageData when no resize needed', async () => {
     const original = createImageData([
       [[255, 0, 0], [0, 255, 0]],
       [[0, 0, 255], [255, 255, 255]]
     ]);
     
-    const result = resizeImageData(original, {});
+    const result = await resizeImageData(original, {});
     expect(result).toBe(original);
     
-    const result2 = resizeImageData(original, { width: 2, height: 2 });
+    const result2 = await resizeImageData(original, { width: 2, height: 2 });
     expect(result2).toBe(original);
   });
 
