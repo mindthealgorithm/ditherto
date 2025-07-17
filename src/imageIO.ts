@@ -49,6 +49,9 @@ async function loadImageDataFromPath(path: string): Promise<ImageData> {
     
     const canvas = createCanvas(image.width, image.height);
     const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Failed to get 2d context from canvas');
+    }
     
     ctx.drawImage(image, 0, 0);
     return ctx.getImageData(0, 0, image.width, image.height);
@@ -179,6 +182,10 @@ export async function resizeImageData(
   const canvas = typeof document !== 'undefined' 
     ? document.createElement('canvas')
     : await createNodeCanvas(imageData.width, imageData.height);
+  
+  if (!canvas) {
+    throw new Error('Failed to create canvas for resizing');
+  }
     
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -194,6 +201,10 @@ export async function resizeImageData(
   const outputCanvas = typeof document !== 'undefined'
     ? document.createElement('canvas') 
     : await createNodeCanvas(newWidth, newHeight);
+  
+  if (!outputCanvas) {
+    throw new Error('Failed to create output canvas');
+  }
     
   const outputCtx = outputCanvas.getContext('2d');
   if (!outputCtx) {
@@ -210,7 +221,7 @@ export async function resizeImageData(
   }
   
   // Draw resized image
-  outputCtx.drawImage(canvas, 0, 0, newWidth, newHeight);
+  outputCtx.drawImage(canvas as any, 0, 0, newWidth, newHeight);
   
   return outputCtx.getImageData(0, 0, newWidth, newHeight);
 }
@@ -218,12 +229,12 @@ export async function resizeImageData(
 /**
  * Create canvas in Node.js environment
  */
-async function createNodeCanvas(width: number, height: number): Promise<{ width: number; height: number; getContext: (type: string) => CanvasRenderingContext2D | null } | undefined> {
+async function createNodeCanvas(width: number, height: number): Promise<{ width: number; height: number; getContext: (type: string) => CanvasRenderingContext2D | null }> {
   try {
     // Use dynamic import for ES modules
     const canvasModule = await import('@napi-rs/canvas');
     const { createCanvas } = canvasModule;
-    return createCanvas(width, height);
+    return createCanvas(width, height) as any;
   } catch (error) {
     // Log the actual error to help debug
     console.error('Canvas creation failed:', error);

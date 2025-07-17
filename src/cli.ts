@@ -8,7 +8,7 @@ import { parseArgs } from 'node:util';
 import { writeFile, access, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { ditherImage } from './imageProcessor.js';
-import { convertToUint8Array, formatForEnvironment } from './outputFormat.js';
+import { convertToUint8Array } from './outputFormat.js';
 import { loadImageData, calculateResizeDimensions } from './imageIO.js';
 import type { DitherOptions } from './types.js';
 

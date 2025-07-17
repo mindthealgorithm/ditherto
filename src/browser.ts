@@ -61,12 +61,23 @@ export function parseDataAttributes(img: HTMLImageElement): DitherOptions {
   const options: DitherOptions = {};
   
   // Parse each attribute using helper functions
-  options.algorithm = parseAlgorithm(dataset);
-  options.width = parsePositiveInteger(dataset.width);
-  options.height = parsePositiveInteger(dataset.height);
-  options.step = parsePositiveInteger(dataset.step);
-  options.quality = parseQuality(dataset.quality);
-  options.palette = parsePalette(dataset.palette);
+  const algorithm = parseAlgorithm(dataset);
+  if (algorithm !== undefined) options.algorithm = algorithm;
+  
+  const width = parsePositiveInteger(dataset.width);
+  if (width !== undefined) options.width = width;
+  
+  const height = parsePositiveInteger(dataset.height);
+  if (height !== undefined) options.height = height;
+  
+  const step = parsePositiveInteger(dataset.step);
+  if (step !== undefined) options.step = step;
+  
+  const quality = parseQuality(dataset.quality);
+  if (quality !== undefined) options.quality = quality;
+  
+  const palette = parsePalette(dataset.palette);
+  if (palette !== undefined) options.palette = palette;
   
   // Handle palette image reference
   if (dataset.paletteImg) {
