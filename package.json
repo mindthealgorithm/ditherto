@@ -61,7 +61,7 @@
     "prepublishOnly": "npm run clean && npm run build"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.1.2",
     "@rollup/plugin-typescript": "^12.1.0",
     "@types/node": "^22.8.4",
     "@vitest/coverage-v8": "^2.1.3",
