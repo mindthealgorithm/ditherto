@@ -20,7 +20,7 @@ vi.mock('@napi-rs/canvas', () => ({
               // Copy imageData to internal storage
               data.set(imageData.data);
             },
-            drawImage: (source: any, dx: number, dy: number, dw?: number, dh?: number) => {
+            drawImage: (source: HTMLCanvasElement, dx: number, dy: number, dw?: number, dh?: number) => {
               // Mock drawImage - just fill with some test data
               for (let i = 0; i < data.length; i += 4) {
                 data[i] = 128;     // R

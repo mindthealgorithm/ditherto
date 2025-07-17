@@ -221,7 +221,7 @@ export async function resizeImageData(
   }
   
   // Draw resized image
-  outputCtx.drawImage(canvas as any, 0, 0, newWidth, newHeight);
+  outputCtx.drawImage(canvas as HTMLCanvasElement, 0, 0, newWidth, newHeight);
   
   return outputCtx.getImageData(0, 0, newWidth, newHeight);
 }
@@ -234,7 +234,7 @@ async function createNodeCanvas(width: number, height: number): Promise<{ width:
     // Use dynamic import for ES modules
     const canvasModule = await import('@napi-rs/canvas');
     const { createCanvas } = canvasModule;
-    return createCanvas(width, height) as any;
+    return createCanvas(width, height) as unknown as { width: number; height: number; getContext: (type: string) => CanvasRenderingContext2D | null };
   } catch (error) {
     // Log the actual error to help debug
     console.error('Canvas creation failed:', error);

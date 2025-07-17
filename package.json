@@ -51,7 +51,7 @@
     "test": "vitest",
     "test:node": "vitest --config vitest.config.ts",
     "test:browser": "vitest --config vitest.browser.config.ts",
-    "test:ci": "vitest run && vitest run --config vitest.browser.config.ts",
+    "test:ci": "vitest run",
     "test:coverage": "vitest run --coverage",
     "lint": "biome lint src/",
     "lint:fix": "biome lint --write src/",

@@ -167,24 +167,7 @@ export const atkinsonAlgorithm: DitherAlgorithm = {
         
         // If step > 1, fill the entire step x step block with the same color
         if (step > 1) {
-          const blockColor: ColorRGB = [
-            pixels[(y * width + x) * 4]!,
-            pixels[(y * width + x) * 4 + 1]!,
-            pixels[(y * width + x) * 4 + 2]!
-          ];
-          
-          // Fill the block
-          for (let by = y; by < Math.min(y + step, height); by++) {
-            for (let bx = x; bx < Math.min(x + step, width); bx++) {
-              if (by !== y || bx !== x) { // Don't overwrite the original pixel
-                const blockI = (by * width + bx) * 4;
-                pixels[blockI] = blockColor[0];
-                pixels[blockI + 1] = blockColor[1];
-                pixels[blockI + 2] = blockColor[2];
-                pixels[blockI + 3] = 255;
-              }
-            }
-          }
+          fillPixelBlock(pixels, x, y, width, height, step);
         }
       }
     }
@@ -192,3 +175,27 @@ export const atkinsonAlgorithm: DitherAlgorithm = {
     return result;
   }
 };
+
+/**
+ * Fill a pixel block with the same color for step > 1
+ */
+function fillPixelBlock(pixels: Uint8ClampedArray, x: number, y: number, width: number, height: number, step: number): void {
+  const blockColor: ColorRGB = [
+    pixels[(y * width + x) * 4]!,
+    pixels[(y * width + x) * 4 + 1]!,
+    pixels[(y * width + x) * 4 + 2]!
+  ];
+  
+  // Fill the block
+  for (let by = y; by < Math.min(y + step, height); by++) {
+    for (let bx = x; bx < Math.min(x + step, width); bx++) {
+      if (by !== y || bx !== x) { // Don't overwrite the original pixel
+        const blockI = (by * width + bx) * 4;
+        pixels[blockI] = blockColor[0];
+        pixels[blockI + 1] = blockColor[1];
+        pixels[blockI + 2] = blockColor[2];
+        pixels[blockI + 3] = 255;
+      }
+    }
+  }
+}
