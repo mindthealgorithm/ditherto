@@ -53,9 +53,9 @@
     "test:browser": "vitest --config vitest.browser.config.ts",
     "test:ci": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "lint": "biome lint src/",
-    "lint:fix": "biome lint --write src/",
-    "format": "biome format --write src/",
+    "lint": "npx biome lint src/",
+    "lint:fix": "npx biome lint --write src/",
+    "format": "npx biome format --write src/",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build"
