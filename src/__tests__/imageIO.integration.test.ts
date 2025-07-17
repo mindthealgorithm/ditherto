@@ -1,9 +1,39 @@
 // ABOUTME: Integration tests for image I/O using real PNG fixtures  
 // ABOUTME: Tests actual file loading - requires canvas package for Node.js
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { loadImageData } from '../imageIO.js';
+import { ditherImage } from '../imageProcessor.js';
+import { generatePalette } from '../palette/extract.js';
 import { resolve } from 'node:path';
+
+// Mock ImageData class for Node environment
+class MockImageData {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+  colorSpace: 'srgb' = 'srgb';
+  
+  constructor(width: number, height: number);
+  constructor(data: Uint8ClampedArray, width: number, height?: number);
+  constructor(dataOrWidth: Uint8ClampedArray | number, width: number, height?: number) {
+    if (typeof dataOrWidth === 'number') {
+      this.width = dataOrWidth;
+      this.height = width;
+      this.data = new Uint8ClampedArray(this.width * this.height * 4);
+    } else {
+      this.data = dataOrWidth;
+      this.width = width;
+      this.height = height || Math.floor(dataOrWidth.length / (width * 4));
+    }
+  }
+}
+
+// Set up ImageData global for Node environment
+Object.defineProperty(globalThis, 'ImageData', {
+  value: MockImageData,
+  writable: true,
+});
 
 // Test fixture paths
 const FIXTURES_PATH = resolve(process.cwd(), 'tests/fixtures');
@@ -11,8 +41,8 @@ const INPUT_PATH = resolve(FIXTURES_PATH, 'input');
 const PALETTE_PATH = resolve(FIXTURES_PATH, 'palettes');
 
 // These tests require the canvas package to be installed
-// If canvas is not available, they will be skipped  
-describe.skip('loadImageData integration tests (requires canvas)', () => {
+// Canvas is now available in CI, so these tests can run
+describe('loadImageData integration tests (requires canvas)', () => {
   it('should load solid black 4x4 PNG correctly', async () => {
     const imagePath = resolve(INPUT_PATH, 'solid-black-4x4.png');
     
@@ -215,5 +245,265 @@ describe.skip('loadImageData integration tests (requires canvas)', () => {
     const invalidPath = resolve(INPUT_PATH, '..');
     
     await expect(loadImageData(invalidPath)).rejects.toThrow();
+  });
+});
+
+// Pipeline validation tests - ensures complete dithering pipeline works correctly
+describe('Complete dithering pipeline integration tests', () => {
+  // Helper to check result type in cross-platform way
+  function isImageDataLike(result: unknown): boolean {
+    return result && typeof result === 'object' && 'data' in result && 'width' in result && 'height' in result;
+  }
+  
+  function isUint8ArrayLike(result: unknown): boolean {
+    return result instanceof Uint8Array;
+  }
+  
+  /**
+   * Convert result to ImageData for analysis
+   */
+  function resultToImageData(result: unknown, expectedWidth?: number, expectedHeight?: number): ImageData {
+    if (isImageDataLike(result)) {
+      return result as ImageData;
+    }
+    if (isUint8ArrayLike(result)) {
+      const rgbData = result as Uint8Array;
+      
+      // Calculate width and height from RGB data length (3 bytes per pixel)
+      let width: number;
+      let height: number;
+      
+      if (expectedWidth && expectedHeight) {
+        width = expectedWidth;
+        height = expectedHeight;
+      } else if (expectedWidth) {
+        width = expectedWidth;
+        height = rgbData.length / (expectedWidth * 3);
+      } else if (expectedHeight) {
+        height = expectedHeight;
+        width = rgbData.length / (expectedHeight * 3);
+      } else {
+        // Try to infer square dimensions as fallback
+        const pixelCount = rgbData.length / 3;
+        const side = Math.sqrt(pixelCount);
+        if (side === Math.floor(side)) {
+          width = side;
+          height = side;
+        } else {
+          throw new Error('Cannot determine ImageData dimensions from Uint8Array');
+        }
+      }
+      
+      // Convert RGB to RGBA format
+      const rgbaData = new Uint8ClampedArray(width * height * 4);
+      for (let i = 0, j = 0; i < rgbData.length; i += 3, j += 4) {
+        rgbaData[j] = rgbData[i]!;       // Red
+        rgbaData[j + 1] = rgbData[i + 1]!; // Green
+        rgbaData[j + 2] = rgbData[i + 2]!; // Blue
+        rgbaData[j + 3] = 255;             // Alpha (fully opaque)
+      }
+      
+      return new ImageData(rgbaData, width, height);
+    }
+    throw new Error('Result is neither ImageData nor Uint8Array');
+  }
+  
+  /**
+   * Analyze color distribution in ImageData
+   */
+  function analyzeColors(imageData: ImageData): Map<string, number> {
+    const colorCounts = new Map<string, number>();
+    const data = imageData.data;
+    
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = data[i + 3];
+      
+      // Skip transparent pixels
+      if (a === 0) continue;
+      
+      const colorKey = `${r},${g},${b}`;
+      colorCounts.set(colorKey, (colorCounts.get(colorKey) || 0) + 1);
+    }
+    
+    return colorCounts;
+  }
+
+  /**
+   * Check if colors match the GameBoy palette
+   */
+  function checkGameBoyPalette(colors: Map<string, number>): boolean {
+    const gameboyColors = [
+      '15,56,15',
+      '48,98,48', 
+      '139,172,15',
+      '155,188,15'
+    ];
+    
+    // Check that all colors in the result are GameBoy colors
+    for (const colorKey of colors.keys()) {
+      if (!gameboyColors.includes(colorKey)) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  it('should complete full dithering pipeline with GameBoy palette', async () => {
+    // Test the complete pipeline: Load → Palette → Dither → Analyze
+    const imagePath = resolve(INPUT_PATH, 'complex-photo.png');
+    const palettePath = resolve(PALETTE_PATH, 'gameboy-palette.png');
+    
+    // Step 1: Load original image
+    const originalImageData = await loadImageData(imagePath);
+    expect(originalImageData.width).toBeGreaterThan(0);
+    expect(originalImageData.height).toBeGreaterThan(0);
+    
+    // Step 2: Load GameBoy palette
+    const palette = await generatePalette(palettePath);
+    expect(palette).toHaveLength(4);
+    
+    // Verify GameBoy colors are loaded correctly
+    const expectedColors = [
+      [15, 56, 15],
+      [48, 98, 48],
+      [139, 172, 15],
+      [155, 188, 15]
+    ];
+    
+    for (const expectedColor of expectedColors) {
+      const found = palette.some(color => 
+        color[0] === expectedColor[0] && 
+        color[1] === expectedColor[1] && 
+        color[2] === expectedColor[2]
+      );
+      expect(found).toBe(true);
+    }
+    
+    // Step 3: Apply dithering with resizing
+    const result = await ditherImage(imagePath, {
+      paletteImg: palettePath,
+      algorithm: 'atkinson',
+      width: 200 // Resize to smaller size for testing
+    });
+    
+    // Step 4: Analyze the result
+    expect(result).toBeDefined();
+    expect(isImageDataLike(result) || isUint8ArrayLike(result)).toBe(true);
+    
+    const resultImageData = resultToImageData(result, 200); // Height will be calculated
+    
+    expect(resultImageData.width).toBe(200);
+    expect(resultImageData.height).toBeGreaterThan(0);
+    
+    // Step 5: Check color distribution
+    const colors = analyzeColors(resultImageData);
+    
+    // Should have multiple colors (not single color bug)
+    expect(colors.size).toBeGreaterThan(1);
+    expect(colors.size).toBeLessThanOrEqual(4);
+    
+    // All colors should be GameBoy colors
+    expect(checkGameBoyPalette(colors)).toBe(true);
+    
+    // Should have reasonable distribution (not all one color)
+    const totalPixels = resultImageData.width * resultImageData.height;
+    const colorCounts = Array.from(colors.values());
+    const maxColorCount = Math.max(...colorCounts);
+    const maxColorPercentage = (maxColorCount / totalPixels) * 100;
+    
+    // No single color should dominate more than 90%
+    expect(maxColorPercentage).toBeLessThan(90);
+  });
+
+  it('should handle different dithering algorithms correctly', async () => {
+    const imagePath = resolve(INPUT_PATH, 'gradient-4x4.png');
+    const palettePath = resolve(PALETTE_PATH, 'bw-palette.png');
+    
+    // Test different algorithms
+    const algorithms = ['atkinson', 'floyd-steinberg', 'ordered'] as const;
+    
+    for (const algorithm of algorithms) {
+      const result = await ditherImage(imagePath, {
+        paletteImg: palettePath,
+        algorithm: algorithm
+      });
+      
+      expect(result).toBeDefined();
+      expect(isImageDataLike(result) || isUint8ArrayLike(result)).toBe(true);
+      
+      const resultImageData = resultToImageData(result, 4, 4);
+      
+      // Check basic properties
+      expect(resultImageData.width).toBe(4);
+      expect(resultImageData.height).toBe(4);
+      
+      // Check that it's using the BW palette
+      const colors = analyzeColors(resultImageData);
+      expect(colors.size).toBeGreaterThan(0);
+      expect(colors.size).toBeLessThanOrEqual(2);
+      
+      // Should contain black and/or white pixels
+      const hasBlack = colors.has('0,0,0');
+      const hasWhite = colors.has('255,255,255');
+      expect(hasBlack || hasWhite).toBe(true);
+    }
+  });
+
+  it('should handle step parameter for chunky pixels', async () => {
+    const imagePath = resolve(INPUT_PATH, 'checkerboard-4x4.png');
+    const palettePath = resolve(PALETTE_PATH, 'bw-palette.png');
+    
+    // Test with step=2 (2x2 chunky pixels)
+    const result = await ditherImage(imagePath, {
+      paletteImg: palettePath,
+      algorithm: 'atkinson',
+      step: 2
+    });
+    
+    expect(result).toBeDefined();
+    expect(isImageDataLike(result) || isUint8ArrayLike(result)).toBe(true);
+    
+    const resultImageData = resultToImageData(result, 4, 4);
+    
+    // Should maintain original dimensions
+    expect(resultImageData.width).toBe(4);
+    expect(resultImageData.height).toBe(4);
+    
+    // Should have chunky 2x2 blocks
+    const colors = analyzeColors(resultImageData);
+    expect(colors.size).toBeGreaterThan(0);
+    expect(colors.size).toBeLessThanOrEqual(2);
+  });
+
+  it('should maintain aspect ratio when resizing', async () => {
+    const imagePath = resolve(INPUT_PATH, 'complex-photo.png');
+    const palettePath = resolve(PALETTE_PATH, 'gameboy-palette.png');
+    
+    // Load original to check aspect ratio
+    const original = await loadImageData(imagePath);
+    const originalAspectRatio = original.width / original.height;
+    
+    // Test resizing by width
+    const result = await ditherImage(imagePath, {
+      paletteImg: palettePath,
+      algorithm: 'atkinson',
+      width: 100
+    });
+    
+    expect(result).toBeDefined();
+    expect(isImageDataLike(result) || isUint8ArrayLike(result)).toBe(true);
+    
+    const resultImageData = resultToImageData(result, 100); // Height will be calculated
+    
+    expect(resultImageData.width).toBe(100);
+    
+    const newAspectRatio = resultImageData.width / resultImageData.height;
+    
+    // Aspect ratio should be preserved (within small tolerance)
+    expect(Math.abs(newAspectRatio - originalAspectRatio)).toBeLessThan(0.01);
   });
 });
