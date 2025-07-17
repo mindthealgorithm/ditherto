@@ -40,7 +40,7 @@ async function loadImageDataFromPath(path: string): Promise<ImageData> {
   try {
     // Dynamic import for Node.js-only dependency
     const { readFile } = await import('node:fs/promises');
-    const canvasPackageName = 'canvas';
+    const canvasPackageName = '@napi-rs/canvas';
     const canvasModule = await import(canvasPackageName) as { createCanvas: (width: number, height: number) => HTMLCanvasElement; loadImage: (buffer: Buffer) => Promise<HTMLImageElement> };
     const { createCanvas, loadImage } = canvasModule;
     
@@ -54,7 +54,7 @@ async function loadImageDataFromPath(path: string): Promise<ImageData> {
     return ctx.getImageData(0, 0, image.width, image.height);
   } catch (error) {
     if (error instanceof Error && error.message.includes('Cannot resolve module')) {
-      throw new Error('canvas package required for Node.js image loading. Install with: npm install canvas');
+      throw new Error('@napi-rs/canvas package required for Node.js image loading. Install with: npm install @napi-rs/canvas');
     }
     throw new Error(`Failed to load image from path: ${error}`);
   }
@@ -160,10 +160,10 @@ export function calculateResizeDimensions(
 /**
  * Resize ImageData to new dimensions
  */
-export function resizeImageData(
+export async function resizeImageData(
   imageData: ImageData,
   options: ResizeOptions
-): ImageData {
+): Promise<ImageData> {
   const { width: newWidth, height: newHeight } = calculateResizeDimensions(
     imageData.width,
     imageData.height,
@@ -178,7 +178,7 @@ export function resizeImageData(
   // Create canvas for resizing
   const canvas = typeof document !== 'undefined' 
     ? document.createElement('canvas')
-    : createNodeCanvas(imageData.width, imageData.height);
+    : await createNodeCanvas(imageData.width, imageData.height);
     
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -193,7 +193,7 @@ export function resizeImageData(
   // Create output canvas at new size
   const outputCanvas = typeof document !== 'undefined'
     ? document.createElement('canvas') 
-    : createNodeCanvas(newWidth, newHeight);
+    : await createNodeCanvas(newWidth, newHeight);
     
   const outputCtx = outputCanvas.getContext('2d');
   if (!outputCtx) {
@@ -203,9 +203,11 @@ export function resizeImageData(
   outputCanvas.width = newWidth;
   outputCanvas.height = newHeight;
   
-  // Use high-quality scaling
-  outputCtx.imageSmoothingEnabled = true;
-  outputCtx.imageSmoothingQuality = 'high';
+  // Use nearest-neighbor scaling to preserve original pixel values
+  outputCtx.imageSmoothingEnabled = false;
+  if ('imageSmoothingQuality' in outputCtx) {
+    outputCtx.imageSmoothingQuality = 'low';
+  }
   
   // Draw resized image
   outputCtx.drawImage(canvas, 0, 0, newWidth, newHeight);
@@ -216,28 +218,16 @@ export function resizeImageData(
 /**
  * Create canvas in Node.js environment
  */
-function createNodeCanvas(width: number, height: number): { width: number; height: number; getContext: (type: string) => CanvasRenderingContext2D | null } | undefined {
+async function createNodeCanvas(width: number, height: number): Promise<{ width: number; height: number; getContext: (type: string) => CanvasRenderingContext2D | null } | undefined> {
   try {
-    // Use dynamic import instead of eval
-    const canvasModule = require('canvas');
+    // Use dynamic import for ES modules
+    const canvasModule = await import('@napi-rs/canvas');
     const { createCanvas } = canvasModule;
     return createCanvas(width, height);
-  } catch {
-    // Return a mock canvas for testing
-    return {
-      width,
-      height,
-      getContext: () => ({
-        putImageData: () => {},
-        drawImage: () => {},
-        getImageData: (_x: number, _y: number, w: number, h: number) => ({
-          data: new Uint8ClampedArray(w * h * 4),
-          width: w,
-          height: h,
-          colorSpace: 'srgb' as const
-        })
-      })
-    };
+  } catch (error) {
+    // Log the actual error to help debug
+    console.error('Canvas creation failed:', error);
+    throw new Error('@napi-rs/canvas package required for Node.js image resizing. Install with: npm install @napi-rs/canvas');
   }
 }
 

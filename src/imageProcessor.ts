@@ -25,7 +25,7 @@ async function loadInputImageData(input: InputImageSource): Promise<ImageData> {
 /**
  * Apply resize if requested in options
  */
-function applyResize(imageData: ImageData, options: DitherOptions): ImageData {
+async function applyResize(imageData: ImageData, options: DitherOptions): Promise<ImageData> {
   if (!options.width && !options.height) {
     return imageData;
   }
@@ -33,7 +33,7 @@ function applyResize(imageData: ImageData, options: DitherOptions): ImageData {
   const resizeOptions: { width?: number; height?: number } = {};
   if (options.width) resizeOptions.width = options.width;
   if (options.height) resizeOptions.height = options.height;
-  return resizeImageData(imageData, resizeOptions);
+  return await resizeImageData(imageData, resizeOptions);
 }
 
 /**
@@ -78,15 +78,15 @@ export async function ditherImage(
   // Step 1: Load image data from input source
   const imageData = await loadInputImageData(input);
   
-  // Step 2: Resize if requested
-  const resizedData = applyResize(imageData, options);
-  
-  // Step 3: Determine palette
+  // Step 2: Determine palette
   const palette = await determinePalette(options);
   
-  // Step 4: Get algorithm (default to atkinson)
+  // Step 3: Get algorithm (default to atkinson)
   const algorithmName = options.algorithm || 'atkinson';
   const algorithm = getAlgorithm(algorithmName);
+  
+  // Step 4: Resize BEFORE dithering if requested
+  const resizedData = await applyResize(imageData, options);
   
   // Step 5: Apply dithering
   const step = options.step || 1;

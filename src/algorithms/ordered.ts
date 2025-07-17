@@ -100,6 +100,24 @@ export const orderedAlgorithm: DitherAlgorithm = {
         pixels[i + 1] = newPixel[1];
         pixels[i + 2] = newPixel[2];
         pixels[i + 3] = 255; // Alpha
+        
+        // If step > 1, fill the entire step x step block with the same color
+        if (step > 1) {
+          const blockColor: ColorRGB = [newPixel[0], newPixel[1], newPixel[2]];
+          
+          // Fill the block
+          for (let by = y; by < Math.min(y + step, height); by++) {
+            for (let bx = x; bx < Math.min(x + step, width); bx++) {
+              if (by !== y || bx !== x) { // Don't overwrite the original pixel
+                const blockI = (by * width + bx) * 4;
+                pixels[blockI] = blockColor[0];
+                pixels[blockI + 1] = blockColor[1];
+                pixels[blockI + 2] = blockColor[2];
+                pixels[blockI + 3] = 255;
+              }
+            }
+          }
+        }
       }
     }
     

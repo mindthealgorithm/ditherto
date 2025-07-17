@@ -2,7 +2,13 @@
   "name": "ditherto",
   "version": "0.1.0",
   "description": "Pixelate your life by dithering your images to fixed colour palette",
-  "keywords": ["dithering", "image", "pixel", "palette", "graphics"],
+  "keywords": [
+    "dithering",
+    "image",
+    "pixel",
+    "palette",
+    "graphics"
+  ],
   "homepage": "https://github.com/vexlin/ditherto",
   "bugs": "https://github.com/vexlin/ditherto/issues",
   "repository": {
@@ -68,5 +74,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.74"
   }
 }

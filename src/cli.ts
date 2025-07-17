@@ -8,6 +8,8 @@ import { parseArgs } from 'node:util';
 import { writeFile, access, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { ditherImage } from './imageProcessor.js';
+import { convertToUint8Array, formatForEnvironment } from './outputFormat.js';
+import { loadImageData, calculateResizeDimensions } from './imageIO.js';
 import type { DitherOptions } from './types.js';
 
 export interface CliArgs {
@@ -175,11 +177,48 @@ function buildDitherOptions(args: CliArgs): DitherOptions {
 }
 
 /**
+ * Convert RGB data to PNG format
+ */
+async function convertToPNG(rgbData: Uint8Array, width: number, height: number): Promise<Buffer> {
+  // Dynamic import for Node.js-only dependency
+  const canvasModule = await import('@napi-rs/canvas');
+  const { createCanvas } = canvasModule;
+  
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+  
+  // Create RGBA data from RGB data
+  const rgbaData = new Uint8ClampedArray(width * height * 4);
+  
+  // Convert RGB to RGBA
+  for (let i = 0, j = 0; i < rgbData.length; i += 3, j += 4) {
+    rgbaData[j] = rgbData[i]!;       // Red
+    rgbaData[j + 1] = rgbData[i + 1]!; // Green
+    rgbaData[j + 2] = rgbData[i + 2]!; // Blue
+    rgbaData[j + 3] = 255;           // Alpha (opaque)
+  }
+  
+  // Create ImageData using canvas context createImageData
+  const imageData = ctx.createImageData(width, height);
+  imageData.data.set(rgbaData);
+  
+  // Put ImageData on canvas
+  ctx.putImageData(imageData, 0, 0);
+  
+  // Export as PNG
+  return canvas.toBuffer('image/png');
+}
+
+/**
  * Write processed image to output file
  */
-async function writeOutput(data: Uint8Array, args: CliArgs): Promise<void> {
+async function writeOutput(data: Uint8Array, args: CliArgs, width: number, height: number): Promise<void> {
   const outputPath = args.output || args.input.replace(/\.[^.]+$/, '.dithered.png');
-  await writeFile(outputPath, data);
+  
+  // Convert RGB data to PNG
+  const pngBuffer = await convertToPNG(data, width, height);
+  
+  await writeFile(outputPath, pngBuffer);
   console.log(`Processed: ${args.input} -> ${outputPath}`);
 }
 
@@ -199,8 +238,19 @@ export async function processFiles(args: CliArgs): Promise<void> {
 
   try {
     const result = await ditherImage(args.input, options);
-    const outputData = result instanceof Uint8Array ? result : new Uint8Array(result.data.buffer);
-    await writeOutput(outputData, args);
+    
+    // If we got Uint8Array (Node.js default), we need to reconstruct ImageData
+    if (result instanceof Uint8Array) {
+      // Unfortunately, we lost the dimensions. Let's load the original image to get dimensions
+      const originalImageData = await loadImageData(args.input);
+      const resizedDimensions = calculateResizeDimensions(originalImageData.width, originalImageData.height, options);
+      
+      await writeOutput(result, args, resizedDimensions.width, resizedDimensions.height);
+    } else {
+      // We have ImageData with dimensions
+      const outputData = convertToUint8Array(result);
+      await writeOutput(outputData, args, result.width, result.height);
+    }
   } catch (error) {
     throw new Error(`Failed to process ${args.input}: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -228,7 +278,13 @@ async function main(): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Check if we're being run as main module
+// This handles both direct execution and npx execution
+const isMain = import.meta.url === `file://${process.argv[1]}` || 
+               process.argv[1]?.endsWith('cli.js') ||
+               process.argv[1]?.endsWith('ditherto');
+
+if (isMain) {
   main().catch((error) => {
     console.error('Error:', error);
     process.exit(1);
