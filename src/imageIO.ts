@@ -69,16 +69,17 @@ async function loadImageDataFromPath(path: string): Promise<ImageData> {
 function loadImageDataFromHTMLImage(img: HTMLImageElement): ImageData {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
-  
+
   if (!ctx) {
     throw new Error('Failed to get 2d context from canvas');
   }
-  
-  canvas.width = img.width;
-  canvas.height = img.height;
-  
+
+  // Use naturalWidth/naturalHeight to get actual image dimensions, not rendered size
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+
   ctx.drawImage(img, 0, 0);
-  return ctx.getImageData(0, 0, img.width, img.height);
+  return ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
 }
 
 /**
@@ -172,9 +173,12 @@ export async function resizeImageData(
     imageData.height,
     options
   );
-  
+
+  console.log(`[resizeImageData] Original: ${imageData.width}x${imageData.height}, Target: ${newWidth}x${newHeight}`);
+
   // If no resize needed, return original
   if (newWidth === imageData.width && newHeight === imageData.height) {
+    console.log('[resizeImageData] No resize needed');
     return imageData;
   }
   
@@ -220,9 +224,13 @@ export async function resizeImageData(
     outputCtx.imageSmoothingQuality = 'low';
   }
   
-  // Draw resized image
-  outputCtx.drawImage(canvas as HTMLCanvasElement, 0, 0, newWidth, newHeight);
-  
+  // Draw resized image - use 9-parameter version to properly scale source to destination
+  outputCtx.drawImage(
+    canvas as HTMLCanvasElement,
+    0, 0, imageData.width, imageData.height,  // source rectangle
+    0, 0, newWidth, newHeight                 // destination rectangle
+  );
+
   return outputCtx.getImageData(0, 0, newWidth, newHeight);
 }
 
