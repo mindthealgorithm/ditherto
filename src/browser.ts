@@ -1,11 +1,15 @@
 /**
  * Browser-specific utilities for dithering images
- * 
+ *
  * Provides DOM helpers and automatic dithering functionality
  */
 
 import type { DitherOptions, ColorRGB } from './types.js';
 import { ditherImage } from './imageProcessor.js';
+import { PALETTES } from './palette/utils.js';
+
+// Re-export for browser convenience
+export { ditherImage, PALETTES };
 
 /**
  * Parse algorithm from dataset
