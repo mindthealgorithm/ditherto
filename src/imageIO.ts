@@ -274,7 +274,9 @@ export function createImageDataCrossPlatform(
   height: number
 ): ImageData {
   if (typeof ImageData !== 'undefined') {
-    return new ImageData(data, width, height) as ImageData;
+    // Create a proper Uint8ClampedArray with ArrayBuffer (not SharedArrayBuffer)
+    const safeData = new Uint8ClampedArray(data);
+    return new ImageData(safeData, width, height);
   }
   // Mock ImageData for Node environment
   return {
