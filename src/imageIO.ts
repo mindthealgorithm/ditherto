@@ -21,7 +21,7 @@ export async function loadImageData(input: InputImageSource): Promise<ImageData>
   }
   if (input instanceof ArrayBuffer || input instanceof Uint8Array) {
     // Convert to Blob first, then process
-    const blob = new Blob([input]);
+    const blob = new Blob([input as BlobPart]);
     return loadImageDataFromBlob(blob);
   }
   
@@ -269,12 +269,12 @@ export function validateImageDimensions(width: number, height: number): void {
  * Create ImageData in a cross-platform way
  */
 export function createImageDataCrossPlatform(
-  data: Uint8ClampedArray, 
-  width: number, 
+  data: Uint8ClampedArray,
+  width: number,
   height: number
 ): ImageData {
   if (typeof ImageData !== 'undefined') {
-    return new ImageData(data, width, height);
+    return new ImageData(data, width, height) as ImageData;
   }
   // Mock ImageData for Node environment
   return {
