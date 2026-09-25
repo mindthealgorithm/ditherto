@@ -9,7 +9,7 @@ Published September 25, 2026: [`ditherto@0.1.0`](https://www.npmjs.com/package/d
 - `prepack` rebuilds the distribution before packing. `npm pack` produces `ditherto-0.1.0.tgz`.
 - Package verification covers exports, declarations, CLI behavior, browser dependency isolation and gzip budgets.
 - Browser entries contain no native imports. Node decoding/PNG encoding uses the existing `@napi-rs/canvas` dependency and its platform binaries; tarball size does not include installed dependency size.
-- The `Release package` workflow builds and tests on demand and uploads a tarball. Its `publish` input defaults to false. Tagging alone does not publish.
+- The `Release package` workflow tests, builds and publishes when a stable GitHub release is published. Manual runs build an archive by default; publishing from a manual run requires selecting the matching version tag. Tagging alone does not publish.
 
 ## Try the archive as a consumer
 
@@ -39,7 +39,19 @@ The account owner needs an npm account with the package name available and an au
 
 ## Subsequent releases via GitHub
 
-Configure an npm trusted publisher for the package: GitHub user `jcinis`, repository `ditherto`, workflow `release.yml`, no environment restriction unless one is added to the workflow. Permit direct `npm publish` if using its publish option. The workflow uses Node 24, npm 11 and `id-token: write`; no persistent npm token is required. Run `Release package` on the intended ref with publishing enabled only after the version is updated. [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/).
+Use npm trusted publishing with GitHub Actions: GitHub user `jcinis`, repository `ditherto`, workflow `release.yml`, and no environment restriction. Permit direct `npm publish`. The workflow uses Node 24, npm 11.19.1 and `id-token: write`; no persistent npm token is required. [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/).
+
+After the package owner completes the one-time trusted-publisher setup:
+
+1. Choose the next stable version and run `npm version <version> --no-git-tag-version` to update both package files. Commit and push the changes.
+2. Create and publish a GitHub release with the matching tag, such as `v0.1.1`, at that commit. A draft release, prerelease, tag push or ordinary branch push does not publish to npm.
+3. The `Release package` workflow checks that the tag and both package versions agree, runs type checking, lint, unit tests, package checks and all three browser engines, then packs the tested build.
+4. It uploads the archive as a workflow artifact and publishes that same archive to npm through OIDC. npm automatically adds provenance for this public repository.
+5. Check the workflow result and `npm view ditherto version`. Each npm version is immutable; bump the version for later releases.
+
+For a package-only rehearsal, run **Actions → Release package → Run workflow**, leaving `publish` unchecked. This does not exercise npm's OIDC authentication or publish anything. To retry a failed publication manually, select the matching version tag and enable `publish` only if that version has not reached npm. A failed test stops publication; investigate failures before retrying.
+
+The existing `v0.1.0` release predates this trigger and is already on npm. It will not be republished by adding the workflow. Trusted publishing will first be exercised on a future version; do not bump the library solely to test authentication.
 
 ## Other distribution options
 

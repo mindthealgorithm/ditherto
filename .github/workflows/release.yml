@@ -1,24 +1,35 @@
 name: Release package
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish to npm (requires configured trusted publisher)
+        description: Publish to npm (select an unpublished version tag)
         type: boolean
         default: false
 permissions:
   contents: read
   id-token: write
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
 jobs:
   package:
+    if: github.event_name != 'release' || !github.event.release.prerelease
     runs-on: ubuntu-latest
+    env:
+      PUBLISH_PACKAGE: ${{ github.event_name == 'release' || inputs.publish }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - name: Install a trusted-publishing-capable npm
-        run: npm install --global npm@11
+        run: npm install --global npm@11.19.1
+      - name: Validate release version
+        id: version
+        run: node scripts/check-release.mjs
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
@@ -26,11 +37,18 @@ jobs:
       - run: npm run test:package
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:browser
-      - run: npm pack
+      - name: Pack the tested build
+        run: npm pack --ignore-scripts
       - uses: actions/upload-artifact@v4
         with:
           name: npm-package
           path: ditherto-*.tgz
+      - name: Check the publication archive
+        env:
+          PACKAGE_ARCHIVE: ditherto-${{ steps.version.outputs.version }}.tgz
+        run: npm publish "./$PACKAGE_ARCHIVE" --dry-run --access public
       - name: Publish using npm trusted publishing
-        if: inputs.publish
-        run: npm publish --access public
+        if: env.PUBLISH_PACKAGE == 'true'
+        env:
+          PACKAGE_ARCHIVE: ditherto-${{ steps.version.outputs.version }}.tgz
+        run: npm publish "./$PACKAGE_ARCHIVE" --access public
