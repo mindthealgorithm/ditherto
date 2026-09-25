@@ -76,7 +76,15 @@ try {
   execFileSync(process.execPath, [cli, 'tests/fixtures/photos/coffee.jpg', '-o', photoOutput, '--width', '37', '--resample', 'area', '--paletteimg', 'tests/fixtures/photos/astronaut.png', '--palette-colors', '8', '--exposure', '0.5', '--contrast', '1.2']);
   const expectedPhoto = await ditherToImageData('tests/fixtures/photos/coffee.jpg', { width: 37, resample: 'area', paletteImg: 'tests/fixtures/photos/astronaut.png', paletteColors: 8, exposure: 0.5, contrast: 1.2 });
   assert.deepEqual((await loadImageData(photoOutput)).data, expectedPhoto.data);
-  for (const args of [['--palette-colors','0'], ['--palette-colors','257'], ['--palette-colors','8'], ['--exposure','NaN'], ['--exposure','5'], ['--contrast','-1'], ['--resample', 'invalid'], ['--width', '2px'], ['--width', '1.5'], ['--quality', 'NaN'], ['-o', join(temp, 'wrong.jpg')]]) {
+  for (const palette of ['MONO_BLUE', '#25213b,#f4eccf']) {
+    const output = join(temp, 'cli-palette.png');
+    const record = JSON.parse(execFileSync(process.execPath, [cli, 'tests/fixtures/photos/coffee.png', '-o', output, '--palette', palette, '--width', '43', '--resample', 'area', '--json'], {encoding:'utf8'}));
+    assert.deepEqual(record, {input:'tests/fixtures/photos/coffee.png',output,width:43,height:29});
+    const colors = palette === 'MONO_BLUE' ? PALETTES.MONO_BLUE : [[37,33,59],[244,236,207]];
+    const expected = await ditherToImageData('tests/fixtures/photos/coffee.png',{palette:colors,width:43,resample:'area'});
+    assert.deepEqual((await loadImageData(output)).data, expected.data);
+  }
+  for (const args of [['--palette','unknown'], ['--palette','BW','--paletteimg','x.png'], ['--palette-colors','0'], ['--palette-colors','257'], ['--palette-colors','8'], ['--exposure','NaN'], ['--exposure','5'], ['--contrast','-1'], ['--resample', 'invalid'], ['--width', '2px'], ['--width', '1.5'], ['--quality', 'NaN'], ['-o', join(temp, 'wrong.jpg')]]) {
     assert.equal(spawnSync(process.execPath, [cli, 'tests/fixtures/input/gradient-4x4.png', ...args]).status, 1);
   }
 } finally { await rm(temp, { recursive: true, force: true }); }

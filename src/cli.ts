@@ -11,7 +11,8 @@ import { pathToFileURL } from 'node:url';
 import { realpathSync } from 'node:fs';
 import { encodePng } from './node.js';
 import { ditherToImageData, validateOptions } from './imageProcessor.js';
-import type { DitherOptions } from './types.js';
+import type { DitherOptions, ColorRGB } from './types.js';
+import { PALETTES } from './palette/utils.js';
 
 export interface CliArgs {
   input: string;
@@ -19,6 +20,8 @@ export interface CliArgs {
   algorithm: 'atkinson' | 'floyd-steinberg' | 'ordered' | undefined;
   resample?: DitherOptions['resample'];
   paletteImg: string | undefined;
+  palette?: string;
+  json?: boolean;
   paletteColors?: number;
   exposure?: number;
   contrast?: number;
@@ -44,6 +47,8 @@ export function parseCliArgs(args: string[]): CliArgs {
       output: { type: 'string', short: 'o' },
       algorithm: { type: 'string' },
       paletteimg: { type: 'string' },
+      palette: { type: 'string' },
+      json: { type: 'boolean' },
       'palette-colors': { type: 'string' },
       resample: { type: 'string' },
       exposure: { type: 'string' },
@@ -79,6 +84,8 @@ export function parseCliArgs(args: string[]): CliArgs {
   };
 
   if (values.exposure !== undefined) result.exposure = parseNumber(values.exposure, 'Exposure')!;
+  if (values.palette !== undefined) result.palette = values.palette;
+  if (values.json !== undefined) result.json = values.json;
   if (values.contrast !== undefined) result.contrast = parseNumber(values.contrast, 'Contrast')!;
   if (values['palette-colors'] !== undefined)
     result.paletteColors = parseNumber(values['palette-colors'], 'Palette color count')!;
@@ -99,6 +106,8 @@ export function validateCliArgs(args: CliArgs): void {
     throw new Error('Invalid algorithm. Must be: atkinson, floyd-steinberg, or ordered');
   }
 
+  if (args.palette !== undefined && (args.paletteImg !== undefined || args.paletteColors !== undefined))
+    throw new Error('Use either --palette or --paletteimg/--palette-colors');
   validateOptions(buildDitherOptions(args));
 }
 
@@ -113,7 +122,10 @@ Options:
   -o, --output <file>     Output file path
   --algorithm <name>      Dither algorithm (atkinson|floyd-steinberg|ordered)
   --paletteimg <file>     Swatch or photo for palette extraction
+  --palette <name|hexes>  Built-in name or comma-separated #rrggbb colors
+                         Names: ${Object.keys(PALETTES).join(', ')}
   --palette-colors <n>    Choose up to 1–256 colors from paletteimg
+  --json                 Print one JSON result to stdout (errors use stderr)
   --width <number>        Target max width
   --height <number>       Target max height  
   --resample <method>     Resize filter (nearest|area), default nearest
@@ -149,6 +161,19 @@ async function ensureOutputDirectory(outputPath: string): Promise<void> {
   await mkdir(outputDir, { recursive: true });
 }
 
+function parseCliPalette(value: string): readonly ColorRGB[] {
+  const name = value.toUpperCase();
+  if (Object.hasOwn(PALETTES, name)) return PALETTES[name as keyof typeof PALETTES];
+  const colors = value.split(',').map(color => color.trim());
+  if (colors.length > 256 || colors.some(color => !/^#[0-9a-f]{6}$/i.test(color)))
+    throw new Error('Palette must be a built-in name or 1–256 comma-separated #rrggbb colors');
+  return colors.map(color => [
+    Number.parseInt(color.slice(1, 3), 16),
+    Number.parseInt(color.slice(3, 5), 16),
+    Number.parseInt(color.slice(5, 7), 16),
+  ] as const);
+}
+
 /**
  * Convert CLI args to DitherOptions
  */
@@ -156,6 +181,7 @@ function buildDitherOptions(args: CliArgs): DitherOptions {
   const options: DitherOptions = {};
 
   if (args.algorithm) options.algorithm = args.algorithm;
+  if (args.palette !== undefined) options.palette = parseCliPalette(args.palette);
   if (args.resample !== undefined) options.resample = args.resample;
   if (args.paletteImg) options.paletteImg = args.paletteImg;
   if (args.paletteColors !== undefined) options.paletteColors = args.paletteColors;
@@ -183,7 +209,9 @@ export async function processFiles(args: CliArgs): Promise<void> {
   try {
     const result = await ditherToImageData(args.input, buildDitherOptions(args));
     await writeFile(output, encodePng(result));
-    console.log(`Processed: ${args.input} -> ${output}`);
+    console.log(args.json
+      ? JSON.stringify({ input: args.input, output, width: result.width, height: result.height })
+      : `Processed: ${args.input} -> ${output}`);
   } catch (error) {
     throw new Error(
       `Failed to process ${args.input}: ${error instanceof Error ? error.message : String(error)}`

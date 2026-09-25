@@ -572,3 +572,5 @@ footer span:first-child {
 @media (min-width:951px) and (min-height:760px) {
   .preview-area { position:sticky; top:20px; align-self:start; }
 }
+.site-nav{display:flex;align-items:center;flex-wrap:wrap;gap:22px;font-size:12px}.site-nav a{display:inline-flex;align-items:center;min-height:44px;white-space:nowrap}.recipe-help{font-size:12px;line-height:1.7;color:var(--muted);margin:12px 0}.site-nav a:hover{color:var(--accent)}
+@media(max-width:760px){.masthead{flex-wrap:wrap;gap:10px}.site-nav{gap:16px;width:100%}.site-nav a{font-size:11px}.masthead .version{display:none}}

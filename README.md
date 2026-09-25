@@ -4,14 +4,88 @@ Dither images into a fixed palette, with optional resizing and tone adjustments.
 
 Three algorithms: **Atkinson**, **Floyd–Steinberg**, and deterministic **4×4 Bayer ordered dithering**. Bring your own palette or use black/white, monochrome red/green/blue/yellow, Game Boy, CGA, RGB, or 16-level grayscale.
 
-## Try the playground
+[Homepage](https://jcinis.github.io/ditherto/) · [Image playground](https://jcinis.github.io/ditherto/examples/browser-demo.html) · [Responsive gallery](https://jcinis.github.io/ditherto/examples/responsive-demo.html) · [CLI guide](#cli-for-people-and-agents) · [API](#api)
+
+![Coffee photograph beside actual Atkinson output using four colors](https://raw.githubusercontent.com/jcinis/ditherto/main/site/assets/hero.webp)
+
+**One image, a whole page, or a folder of assets.** Choose a shared palette and algorithm, then tune each image's exposure and contrast. The pixel API keeps original dimensions by default; responsive browser bindings automatically follow the layout. No framework required.
+
+## Try it
+
+Open either playground above—no account or installation. Images stay on your device. The image playground exports PNGs, JavaScript and a matching CLI command. The responsive gallery demonstrates independent image settings, automatic rerendering, and restoring originals.
+
+**Preview release:** the npm package is not published yet. Use the source checkout now:
 
 ```sh
+git clone https://github.com/jcinis/ditherto.git
+cd ditherto
 npm ci
+npm run build
+node dist/cli.js photo.jpg -o photo.png --palette MONO_BLUE
 npm run demo
 ```
 
-Open http://127.0.0.1:4173. Upload or drop an image, try the included portrait, coffee and cat photographs, change algorithms and palettes, borrow a chosen number of colors from this image or another photo, adjust exposure/contrast, compare photo averaging with nearest-neighbor resizing, adjust the output width and pixel block size, and download a PNG. Processing happens locally in a worker. **Every change rerenders from the original image.** With “Match preview width” enabled, resizing the page recalculates the output dimensions and pixels too.
+Node 20 or newer is required for the CLI and build tools. The last command starts a local server at `http://127.0.0.1:4173`; the homepage is at `/index.html`. For a local package you can install into another project, run `npm pack`, then `npm install /path/to/ditherto-0.1.0.tgz` in that project.
+
+After npm publication, the same package will support `npm install ditherto` and `npx ditherto`. Until then, use `node dist/cli.js` in place of `npx ditherto` in the examples below. See [publishing status and the release procedure](https://github.com/jcinis/ditherto/blob/main/docs/RELEASING.md).
+
+## CLI for people and agents
+
+A command takes one source file and writes one PNG. No resize is required:
+
+```sh
+npx ditherto photo.jpg -o photo.png --palette MONO_BLUE
+```
+
+Create a small web asset, reuse an art-directed palette, and get a machine-readable result:
+
+```sh
+npx ditherto photo.jpg -o assets/photo.png \
+  --palette '#25213b,#8b5066,#dda77b,#f4eccf' \
+  --algorithm atkinson --width 320 --resample area \
+  --exposure 0.3 --contrast 1.1 --json
+```
+
+```json
+{"input":"photo.jpg","output":"assets/photo.png","width":320,"height":213}
+```
+
+The dimensions above illustrate a 3:2 input. `--json` writes one JSON object to stdout on success; failures write to stderr and exit with code 1. Success exits with code 0. Explicit output paths keep source files separate; an existing output file is overwritten. `--palette` accepts a built-in name (case-insensitive) or 1–256 comma-separated six-digit hex colors. Quote hex lists in your shell. Use `--paletteimg reference.jpg --palette-colors 8` to borrow colors from a photo instead; it cannot be combined with `--palette`.
+
+A useful agent workflow is **render → inspect the PNG → adjust → retain the chosen settings**. Keep the original source for every candidate and give candidates different output names. For example, vary exposure while holding the palette and algorithm fixed:
+
+```sh
+# Bash / POSIX-style shell. Run against the original photo every time.
+for exposure in -0.5 0 0.5; do
+  npx ditherto photo.jpg -o "candidates/photo-ev${exposure}.png" \
+    --palette GAMEBOY --algorithm atkinson \
+    --width 240 --resample area --exposure "$exposure" --json
+done
+```
+
+For fast batches, install once (`npm install --global ditherto` after publication) and call `ditherto`, or use `node dist/cli.js` from the checkout. To avoid process startup for every file in a large batch, use the Node API in one process. There is no hidden auto-tuning: the caller chooses the look, and settings are explicit and reproducible for the same decoded pixels.
+
+```sh
+# Process a directory, preserving filenames and leaving originals intact.
+for file in photos/*.jpg; do
+  [ -f "$file" ] || continue
+  name="${file##*/}"
+  node dist/cli.js "$file" -o "out/${name%.*}.png" \
+    --palette MONO_RED --width 320 --resample area --json
+done
+```
+
+Run `node dist/cli.js --help` for all flags. The CLI supports PNG output and local input paths. For browser URLs, Blob inputs and custom algorithms, use the JavaScript API.
+
+## See the difference
+
+![NASA portrait processed with Atkinson, Floyd–Steinberg, and ordered Bayer dithering](https://raw.githubusercontent.com/jcinis/ditherto/main/site/assets/algorithms.webp)
+
+The algorithms share a black/white palette here. Atkinson discards part of the error for a more open texture; Floyd–Steinberg distributes it across neighboring pixels; Bayer uses a repeating threshold grid.
+
+![The same cat rendered in monochrome blue, dusk, and Game Boy palettes](https://raw.githubusercontent.com/jcinis/ditherto/main/site/assets/palettes.webp)
+
+These pictures are generated by the library itself. [Credits and reproduction details](https://github.com/jcinis/ditherto/blob/main/site/assets/README.md): NASA portrait (public domain), coffee by Rachel Michetti and Chelsea by Stefan van der Walt (CC0).
 
 ## Browser
 
@@ -260,7 +334,7 @@ Each controller has one resize observer and a serial render queue. Updates are c
 
 Call `handle.destroy()` for one image or `gallery.destroy()` for the group. Disposal rejects pending per-image calls with `AbortError`, releases cached pixels and prevents late results from painting. It does not stop computations already running in an injected renderer. DOM removal alone does not dispose a binding; framework integrations should call `destroy()` on unmount.
 
-The default renderer runs on the calling thread, yielding between images. For expensive interactive processing, supply `render(source, options): Promise<ImageData>` backed by a worker. It receives an isolated pixel copy that may be transferred or modified. One worker can serve the whole group: see [the responsive gallery](examples/responsive-demo.html) and [its shared-worker wiring](examples/responsive-demo.js). Worker lifetime belongs to the caller. The gallery includes shared palette/algorithm controls, independent exposures, layout resizing, and original/processed toggling.
+The default renderer runs on the calling thread, yielding between images. For expensive interactive processing, supply `render(source, options): Promise<ImageData>` backed by a worker. It receives an isolated pixel copy that may be transferred or modified. One worker can serve the whole group: see [the responsive gallery](https://jcinis.github.io/ditherto/examples/responsive-demo.html) and [its shared-worker wiring](https://github.com/jcinis/ditherto/blob/main/examples/responsive-demo.js). Worker lifetime belongs to the caller. The gallery includes shared palette/algorithm controls, independent exposures, layout resizing, and original/processed toggling.
 
 ## Algorithm behavior
 
@@ -268,20 +342,13 @@ The default renderer runs on the calling thread, yielding between images. For ex
 - **Atkinson:** six forward neighbors each receive 1/8 of the error; 1/4 is intentionally discarded. The diffusion implementations use only a few rows of scratch memory.
 - **Ordered:** a fixed 4×4 Bayer matrix with centered thresholds `(rank + 0.5) / 16`. Black/white follows ordinary intensity thresholding. Arbitrary palettes use a documented extension: find the nearest color, choose the best RGB segment from it to another palette color, and use the threshold to select between them. Exact palette colors remain unchanged. This is deterministic, not randomized noise.
 
-See [the design audit](DESIGN_AUDIT.md) for references, compatibility changes, findings and remaining work.
-
-## CLI
-
-```sh
-npx ditherto input.jpg -o output.png --algorithm atkinson --width 320 --resample area --step 2
-npx ditherto --help
-```
-
-The CLI processes one input at a time and writes PNG only; unsupported output extensions are rejected. Without `-o`, it writes `<input-name>.dithered.png`. Use `--paletteimg colors.png` for a custom swatch, or `--paletteimg reference.jpg --palette-colors 8` for a photo palette. Tone controls are `--exposure 0.5 --contrast 1.2`. For batches, iterate over files in a shell or Node script.
+See [the design audit](https://github.com/jcinis/ditherto/blob/main/DESIGN_AUDIT.md) for references, compatibility changes, findings and remaining work.
 
 ## Development
 
 ```sh
+npm run build:site   # static homepage and playgrounds in _site/
+npm run assets:site  # regenerate the real README/site pictures
 npm run typecheck
 npm run lint
 npm run test:ci       # unit, oracle, golden PNG, real Node I/O and DOM tests

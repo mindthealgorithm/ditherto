@@ -92,3 +92,17 @@ $('#toggle').addEventListener('click', () => {
 window.addEventListener('pagehide', dispose);
 window.addEventListener('pageshow', event => { if (event.persisted) void bind().catch(report); });
 void bind().catch(report);
+function updateGalleryRecipe() {
+  const values = cards.map(card => ({
+    exposure:Number(card.querySelector('.exposure').value),
+    contrast:Number((controller?.images[cards.indexOf(card)]?.image ?? card.querySelector('img'))?.dataset.contrast ?? 1),
+  }));
+  $('#galleryRecipe').textContent = `import { observeDitherDOM } from 'ditherto/dom';\n\nconst adjustments = ${JSON.stringify(values,null,2)};\nconst gallery = observeDitherDOM('img.dither', {\n  algorithm: '${$('#texture').value}',\n  palette: ${JSON.stringify(palettes[$('#colors').value])},\n  resample: 'area'\n});\n\nawait Promise.all(gallery.images.map((image, index) =>\n  image.update(adjustments[index] ?? {})\n));\n// On unmount: gallery.destroy();`;
+}
+for(const input of document.querySelectorAll('#texture, #colors, .exposure')) input.addEventListener('input', updateGalleryRecipe);
+$('#copyGallery').addEventListener('click',async () => {
+  updateGalleryRecipe();
+  try { await navigator.clipboard.writeText($('#galleryRecipe').textContent); $('#copyGallery').textContent='Copied'; }
+  catch { $('#copyGallery').textContent='Select the recipe above to copy'; }
+});
+updateGalleryRecipe();

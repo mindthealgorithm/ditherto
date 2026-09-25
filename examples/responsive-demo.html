@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./responsive-demo.css">
 </head>
 <body>
-  <header class="masthead"><a class="brand" href="./browser-demo.html"><span class="mark" aria-hidden="true"></span>ditherto<span class="version">IN CONTEXT</span></a><a href="./browser-demo.html">Image playground ↗</a></header>
+  <header class="masthead"><a class="brand" href="../index.html"><span class="mark" aria-hidden="true"></span>ditherto<span class="version">GALLERY</span></a><nav class="site-nav" aria-label="Main navigation"><a href="../index.html">Home</a><a href="./browser-demo.html">Image playground</a><a href="./responsive-demo.html">Responsive gallery</a><a href="https://github.com/jcinis/ditherto#readme">Docs ↗</a></nav></header>
   <main>
     <div class="intro"><div><p class="eyebrow">ONE PALETTE. MANY PERSPECTIVES.</p><h1>A shared look.<br><em>A personal touch.</em></h1></div><p class="intro-note">Keep the colors and texture together.<br>Give each image the light it needs.</p></div>
     <section class="gallery-controls" aria-label="Shared image settings">
@@ -24,7 +24,7 @@
       <article><div class="photo"><img class="dither" src="../tests/fixtures/photos/chelsea.png" alt="Chelsea the cat resting on a blanket" data-exposure="0.2" data-contrast="1.15"></div><div class="caption"><span>03 / The little things</span><output class="dimensions"></output></div><label class="exposure-label">Exposure <output>+0.2 EV</output><input class="exposure" aria-label="Cat exposure" type="range" min="-2" max="2" step="0.1" value="0.2"></label></article>
     </div>
     <div class="gallery-note"><span class="note-star">✳</span><p>Move the width slider or resize your window. Every image is recalculated from its original; exposure stays personal. Show the originals to compare, then bring the shared look back.</p></div>
-    <details><summary>Use this pattern in your site <span>+</span></summary><pre><code>import { observeDitherDOM } from 'ditherto/dom';
+    <details><summary>Use this pattern in your site <span>+</span></summary><pre><code id="galleryRecipe">import { observeDitherDOM } from 'ditherto/dom';
 
 const gallery = observeDitherDOM('img.dither', {
   palette: [[37, 33, 59], [139, 80, 102], [221, 167, 123], [244, 236, 207]],
@@ -34,7 +34,7 @@ const gallery = observeDitherDOM('img.dither', {
 await gallery.ready;
 await gallery.images[0].update({ exposure: 0.3 });
 // On unmount:
-gallery.destroy();</code></pre><p>The helper runs on the calling thread by default. This page supplies a shared worker through the <code>render</code> option. See <a href="./responsive-demo.js">the example source</a>.</p></details>
+gallery.destroy();</code></pre><button class="text-button" id="copyGallery" type="button">Copy current gallery recipe</button><p class="recipe-help">Copies the shared style and each image’s current exposure and contrast. Automatic sizing follows the layout.</p><p>The helper runs on the calling thread by default. This page supplies a shared worker through the <code>render</code> option. See <a href="./responsive-demo.js">the example source</a>.</p></details>
     <footer><span>Photos: NASA (public domain), coffee &amp; Chelsea (CC0).</span><a href="../tests/fixtures/photos/README.md">Photo credits &amp; licenses ↗</a></footer>
   </main>
   <script type="module" src="./responsive-demo.js"></script>

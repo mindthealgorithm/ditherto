@@ -128,7 +128,7 @@ test('download is a valid PNG and the recipe matches chosen settings', async ({ 
   await page.goto('/');
   await ready(page);
   await setWidth(page, 120);
-  await page.locator('.preview-area summary').click();
+  await page.locator('.preview-area summary').filter({hasText: 'Use this recipe in your code'}).click();
   await expect(page.locator('#recipe')).toContainText('width: 120');
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#download').click();

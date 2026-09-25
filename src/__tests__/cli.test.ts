@@ -361,3 +361,22 @@ describe('error handling', () => {
     expect(() => parseCliArgs(args)).toThrow();
   });
 });
+describe('CLI recipes for scripts', () => {
+  it('accepts named palettes and hex lists, and rejects ambiguous palette sources', () => {
+    expect(() => validateCliArgs(parseCliArgs(['photo.jpg','--palette','mono_blue','--json']))).not.toThrow();
+    expect(() => validateCliArgs(parseCliArgs(['photo.jpg','--palette','#123456,#ffffff']))).not.toThrow();
+    for (const palette of ['', 'unknown', '#fff', '#zzzzzz', '#123456,']) {
+      expect(() => validateCliArgs(parseCliArgs(['photo.jpg','--palette',palette]))).toThrow('Palette');
+    }
+    expect(() => validateCliArgs(parseCliArgs(['photo.jpg','--palette','BW','--paletteimg','colors.png']))).toThrow('either');
+    expect(() => validateCliArgs(parseCliArgs(['photo.jpg','--palette','BW','--palette-colors','8']))).toThrow('either');
+  });
+
+  it('prints a single structured success record in JSON mode', async () => {
+    vi.clearAllMocks();
+    vi.mocked(access).mockResolvedValue(undefined);
+    await processFiles(parseCliArgs(['photo.jpg','-o','out.png','--palette','MONO_RED','--json']));
+    expect(mockConsoleLog).toHaveBeenCalledOnce();
+    expect(mockConsoleLog).toHaveBeenCalledWith(JSON.stringify({input:'photo.jpg',output:'out.png',width:2,height:2}));
+  });
+});

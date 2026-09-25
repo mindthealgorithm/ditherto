@@ -28,6 +28,7 @@ let paletteLoadId = 0;
 let paletteLoading = false;
 let renderOptions;
 let recipe = '';
+let cliRecipe = '';
 const worker = new Worker(new URL('./demo-worker.js', import.meta.url), { type: 'module' });
 
 function showError(message) {
@@ -35,6 +36,8 @@ function showError(message) {
   $('error').hidden = false;
   $('status').textContent = 'Could not render this recipe.';
   $('download').disabled = true;
+  $('copy').disabled = true;
+  $('copyCli').disabled = true;
 }
 function readPalette() {
   if (['PHOTO', 'REFERENCE'].includes($('palette').value)) return undefined;
@@ -75,6 +78,9 @@ function updateRecipe(value) {
   const paletteNote = ['PHOTO', 'REFERENCE'].includes(palette) ? '// Extracted palette is embedded below so this recipe is self-contained.\n' : '';
   recipe = `import { ditherToImageData, PALETTES } from 'ditherto/browser';\n\n${paletteNote}const pixels = await ditherToImageData(originalImage, {\n  algorithm: '${value.algorithm}',\n  palette: ${paletteCode},\n  width: ${value.width},\n  resample: '${value.resample}',\n  step: ${value.step},\n  exposure: ${value.exposure},\n  contrast: ${value.contrast},\n});\n\ncanvas.width = pixels.width;\ncanvas.height = pixels.height;\ncanvas.getContext('2d').putImageData(pixels, 0, 0);`;
   $('recipe').textContent = recipe;
+  const paletteArgument = palette in PALETTES ? palette : value.palette.map(rgb => '#' + rgb.map(channel => channel.toString(16).padStart(2,'0')).join('')).join(',');
+  cliRecipe = `npx ditherto input.jpg -o output.png --algorithm ${value.algorithm} --palette '${paletteArgument}' --width ${value.width} --resample ${value.resample} --step ${value.step} --exposure ${value.exposure} --contrast ${value.contrast} --json`;
+  $('cliRecipe').textContent = cliRecipe;
 }
 function dispatch() {
   if (busy || !pending) return;
@@ -88,6 +94,8 @@ function schedule() {
   clearTimeout(timer);
   pending = undefined;
   $('download').disabled = true;
+  $('copy').disabled = true;
+  $('copyCli').disabled = true;
   $('photoPaletteControls').hidden = !['PHOTO', 'REFERENCE'].includes($('palette').value);
   $('paletteFileControls').hidden = $('palette').value !== 'REFERENCE';
   $('customLabel').hidden = $('palette').value !== 'CUSTOM';
@@ -138,6 +146,8 @@ worker.onmessage = ({ data: message }) => {
       $('status').textContent =
         `${result.width} × ${result.height} pixels · ${Math.round(message.elapsed)} ms`;
       $('download').disabled = false;
+      $('copy').disabled = false;
+      $('copyCli').disabled = false;
       output.dataset.revision = String(message.id);
     }
   }
@@ -185,6 +195,8 @@ async function loadFile(file) {
   clearTimeout(timer);
   pending = undefined;
   $('download').disabled = true;
+  $('copy').disabled = true;
+  $('copyCli').disabled = true;
   $('status').textContent = 'Opening image…';
   try {
     const image = await loadImageData(file);
@@ -255,6 +267,8 @@ $('photoSample').addEventListener('change', async () => {
   pending = undefined;
   clearTimeout(timer);
   $('download').disabled = true;
+  $('copy').disabled = true;
+  $('copyCli').disabled = true;
   $('status').textContent = 'Opening photograph…';
   try {
     const response = await fetch(`../tests/fixtures/photos/${name}.png`);
@@ -342,5 +356,9 @@ $('copy').addEventListener('click', async () => {
   } catch {
     $('copy').textContent = 'Select the recipe above to copy';
   }
+});
+$('copyCli').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(cliRecipe); $('copyCli').textContent = 'Copied'; }
+  catch { $('copyCli').textContent = 'Select the command above to copy'; }
 });
 sample();

@@ -1,15 +1,20 @@
 {
   "name": "ditherto",
   "version": "0.1.0",
-  "description": "Pixelate your life by dithering your images to fixed colour palette",
+  "description": "Dither images into fixed palettes in browsers, Node, and the CLI. Optional resizing, photo palettes, and responsive rendering.",
   "keywords": [
     "dithering",
     "image",
     "pixel",
     "palette",
-    "graphics"
+    "graphics",
+    "atkinson",
+    "floyd-steinberg",
+    "bayer",
+    "cli",
+    "image-processing"
   ],
-  "homepage": "https://github.com/jcinis/ditherto",
+  "homepage": "https://jcinis.github.io/ditherto/",
   "bugs": "https://github.com/jcinis/ditherto/issues",
   "repository": {
     "type": "git",
@@ -92,7 +97,10 @@
     "demo": "npm run build && node scripts/serve-demo.mjs",
     "test:dom": "vitest run --config vitest.browser.config.ts",
     "test:package": "npm run build && node scripts/verify-package.mjs",
-    "benchmark": "npm run build && node scripts/benchmark.mjs"
+    "benchmark": "npm run build && node scripts/benchmark.mjs",
+    "build:site": "npm run build && node scripts/build-site.mjs",
+    "assets:site": "npm run build && node scripts/generate-site-assets.mjs",
+    "prepack": "npm run build"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.2",
@@ -111,5 +119,8 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.74"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

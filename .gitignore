@@ -153,3 +153,5 @@ Thumbs.db
 .build/
 playwright-report/
 test-results/
+
+_site/

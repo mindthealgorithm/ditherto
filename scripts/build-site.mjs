@@ -1,0 +1,12 @@
+import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+const target = new URL('../_site/', import.meta.url);
+await rm(target,{recursive:true,force:true});
+await mkdir(target,{recursive:true});
+await cp(new URL('../site/',import.meta.url),target,{recursive:true});
+await cp(new URL('../examples/',import.meta.url),new URL('examples/',target),{recursive:true,filter:path=>!path.endsWith('basic-node.js')});
+await mkdir(new URL('dist/',target),{recursive:true});
+for(const name of ['browser.js','dom.js']) await cp(new URL(`../dist/${name}`,import.meta.url),new URL(`dist/${name}`,target));
+await mkdir(new URL('tests/fixtures/photos/',target),{recursive:true});
+for(const name of ['coffee.png','astronaut.png','chelsea.png','README.md']) await cp(new URL(`../tests/fixtures/photos/${name}`,import.meta.url),new URL(`tests/fixtures/photos/${name}`,target));
+await writeFile(new URL('.nojekyll',target),'');
+console.log('Built GitHub Pages site in _site/ (relative URLs support /ditherto/).');
