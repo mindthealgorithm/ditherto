@@ -8,6 +8,15 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { ditherToImageData, PALETTES, loadImageData } from '../dist/index.js';
 import { encodePng } from '../dist/node.js';
 const require = createRequire(import.meta.url);
+// npm can prune other platforms from a lockfile when node_modules already exists.
+// Preserve these optional binaries so a successful local build also installs in CI.
+const lock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
+for (const name of ['rollup', 'esbuild']) {
+  for (const [dependency, version] of Object.entries(lock.packages[`node_modules/${name}`].optionalDependencies)) {
+    if (!dependency.startsWith('@')) continue;
+    assert.equal(lock.packages[`node_modules/${dependency}`]?.version, version, `Missing or mismatched platform binary: ${dependency}`);
+  }
+}
 const cjs = require('../dist/index.cjs');
 const input = await loadImageData('tests/fixtures/input/gradient-4x4.png');
 const result = await ditherToImageData(input, { width: 8, palette: PALETTES.GAMEBOY });
