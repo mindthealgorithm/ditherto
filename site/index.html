@@ -5,15 +5,22 @@
   <title>dither·to / Arcana</title>
   <meta name="description" content="Dither images with fixed palettes, live responsive rendering, and a scriptable CLI.">
   <link rel="canonical" href="https://jcinis.github.io/ditherto/">
+  <meta property="og:type" content="website">
   <meta property="og:title" content="dither·to — Less color. More feeling.">
-  <meta property="og:image" content="https://jcinis.github.io/ditherto/assets/hero.png">
+  <meta property="og:description" content="Fixed palettes. Live pixels. Dithering for your images, your site, and your scripts.">
+  <meta property="og:image" content="https://jcinis.github.io/ditherto/assets/arcana-share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="dither·to with The Magician and The Empress tarot studies dithered in four amber colors.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://jcinis.github.io/ditherto/assets/arcana-share.png">
   <link rel="stylesheet" href="./arcana.css">
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
   <header class="topbar">
     <a class="wordmark" href="./index.html"><span class="pixel-mark" aria-hidden="true">▦</span> dither·to<span class="muted">_</span></a>
-    <nav aria-label="Main navigation"><a href="./playground.html">[ playground ]</a><a href="#collection">[ collection ]</a><a href="./classic.html">[ original site ↗ ]</a></nav>
+    <nav aria-label="Main navigation"><a href="./playground.html">[ playground ]</a><a href="#collection">[ collection ]</a><a href="./responsive.html">[ responsive gallery ]</a></nav>
     <div class="theme-picker" role="group" aria-label="Page and image palette"><button data-theme="amber" aria-pressed="true" title="Amber palette"><span style="--chip:#efbd76"></span>Amber</button><button data-theme="orchid" aria-pressed="false" title="Orchid palette"><span style="--chip:#d9a9cc"></span>Orchid</button><button data-theme="moss" aria-pressed="false" title="Moss palette"><span style="--chip:#bdcc8e"></span>Moss</button></div>
   </header>
   <main id="main">
@@ -46,7 +53,7 @@
       <div><p class="eyebrow">TAKE THE LOOK WITH YOU</p><h2 id="use-title">Your palette.<br>Your whole world.</h2><p>Give a site a shared visual identity, then tune each image until it feels right. Let CSS set the size. dither·to handles the new pixels.</p><a class="secondary" href="./responsive.html">See the responsive API in action ↗</a><p class="preview-note">Install with <code>npm install ditherto</code>, or run <code>npx ditherto</code>. <a href="https://www.npmjs.com/package/ditherto">View on npm ↗</a></p></div>
       <div class="code-window"><div class="window-title"><span>style-your-images.js</span><button id="copy-code">Copy recipe</button></div><pre><code id="live-code"></code></pre><div class="window-status"><span>NO WIDTH REQUIRED</span><span>ORIGINALS PRESERVED</span></div></div>
     </section>
-    <footer><a class="wordmark" href="./index.html">▦ dither·to_</a><span>Made for the joy of making things.</span><a href="./classic.html">Compare with the original site ↗</a></footer>
+    <footer><a class="wordmark" href="./index.html">▦ dither·to_</a><span>Made for the joy of making things.</span><a href="https://github.com/jcinis/ditherto">Source on GitHub ↗</a></footer>
   </main>
   <script type="module" src="./arcana.js"></script>
 </body>

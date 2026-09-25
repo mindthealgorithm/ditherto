@@ -26,3 +26,5 @@ await strip('hero','coffee',[null,{palette:dusk,exposure:0.3,contrast:1.1}],['Or
 await strip('algorithms','astronaut',[null,{algorithm:'atkinson'},{algorithm:'floyd-steinberg'},{algorithm:'ordered'}],['Original','Atkinson','Floyd–Steinberg','Ordered / Bayer'],280);
 await strip('palettes','chelsea',[{palette:PALETTES.MONO_BLUE},{palette:dusk},{palette:PALETTES.GAMEBOY}],['Blue ink + white','Dusk / four colors','Game Boy'],360);
 console.log('Generated real photographic examples in site/assets.');
+
+await import('./generate-social-preview.mjs');

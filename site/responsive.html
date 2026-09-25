@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>dither·to / Responsive gallery</title>
   <meta name="description" content="Dither images with fixed palettes, live responsive rendering, and a scriptable CLI.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="dither·to — Responsive gallery">
+  <meta property="og:description" content="Fixed palettes. Live pixels. Dithering for your images, your site, and your scripts.">
+  <meta property="og:image" content="https://jcinis.github.io/ditherto/assets/arcana-share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="dither·to with The Magician and The Empress tarot studies dithered in four amber colors.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://jcinis.github.io/ditherto/assets/arcana-share.png">
   <link rel="stylesheet" href="./examples/demo.css">
   <link rel="stylesheet" href="./examples/responsive-demo.css">
   <link rel="stylesheet" href="./playground.css">
@@ -40,7 +49,7 @@ await gallery.ready;
 await gallery.images[0].update({ exposure: 0.3 });
 // On unmount:
 gallery.destroy();</code></pre><button class="text-button" id="copyGallery" type="button">Copy current gallery recipe</button><p class="recipe-help">Copies the shared style and each image’s current exposure and contrast. Automatic sizing follows the layout.</p><p>The helper runs on the calling thread by default. This page supplies a shared worker through the <code>render</code> option. See <a href="./examples/responsive-demo.js">the example source</a>.</p></details>
-    <footer><span>Tarot studies by Jessey · rendered live with dither·to.</span><a href="./playground.html">Open the image playground ↗</a></footer>
+    <footer><span>Tarot studies · rendered live with dither·to.</span><a href="./playground.html">Open the image playground ↗</a></footer>
   </main>
   <script type="module" src="./responsive.js"></script>
 </body>
