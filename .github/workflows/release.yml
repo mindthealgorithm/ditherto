@@ -44,6 +44,7 @@ jobs:
           name: npm-package
           path: ditherto-*.tgz
       - name: Check the publication archive
+        if: env.PUBLISH_PACKAGE == 'true'
         env:
           PACKAGE_ARCHIVE: ditherto-${{ steps.version.outputs.version }}.tgz
         run: npm publish "./$PACKAGE_ARCHIVE" --dry-run --access public
