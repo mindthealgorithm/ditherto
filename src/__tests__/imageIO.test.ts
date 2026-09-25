@@ -1,7 +1,7 @@
 // ABOUTME: Tests for image I/O functionality across environments
 // ABOUTME: Validates loading from various sources and resizing with aspect ratio preservation
 
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { 
   loadImageData, 
   calculateResizeDimensions, 
@@ -116,7 +116,7 @@ describe('validateImageDimensions', () => {
   it('should accept valid dimensions', () => {
     expect(() => validateImageDimensions(100, 200)).not.toThrow();
     expect(() => validateImageDimensions(1, 1)).not.toThrow();
-    expect(() => validateImageDimensions(8192, 8192)).not.toThrow();
+    expect(() => validateImageDimensions(4096, 4096)).not.toThrow();
   });
 
   it('should reject zero or negative dimensions', () => {

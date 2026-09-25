@@ -1,57 +1,41 @@
-// ABOUTME: Palette extraction from PNG images
-// ABOUTME: Extracts unique colors from reference images for dithering
-
-import type { InputImageSource, ColorRGB } from '../types.js';
+import type { InputImageSource, ColorRGB, GeneratePaletteOptions } from '../types.js';
 import { loadImageData } from '../imageIO.js';
+import { validatePixels, validatePositiveInteger } from '../validation.js';
 
-/**
- * Extract unique colors from a PNG image to create a palette
- */
-export async function generatePalette(input: InputImageSource): Promise<ColorRGB[]> {
-  const imageData = await loadImageData(input);
-  return extractColorsFromImageData(imageData);
+import { quantizePalette, validateColorCount } from './quantize.js';
+
+/** Exact swatch extraction by default; { colors } selects bounded photo quantization. */
+export async function generatePalette(
+  input: InputImageSource,
+  options: GeneratePaletteOptions = {}
+): Promise<ColorRGB[]> {
+  if (options.colors !== undefined) {
+    validateColorCount(options.colors);
+    if (options.maxColors !== undefined)
+      throw new Error('Use colors for photos or maxColors for exact swatches, not both');
+    return quantizePalette(await loadImageData(input), options.colors);
+  }
+  return extractColorsFromImageData(await loadImageData(input), options.maxColors ?? 256);
 }
 
-
-/**
- * Extract unique colors from ImageData
- */
-export function extractColorsFromImageData(imageData: ImageData): ColorRGB[] {
-  const data = imageData.data;
-  const colorSet = new Set<string>();
-  
-  // Extract unique colors, skipping fully transparent pixels
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    const a = data[i + 3];
-    
-    // Skip fully transparent pixels
-    if (a === 0) continue;
-    
-    // Create a unique string for the color
-    const colorKey = `${r},${g},${b}`;
-    colorSet.add(colorKey);
+export function extractColorsFromImageData(imageData: ImageData, maxColors = 256): ColorRGB[] {
+  validatePixels(imageData);
+  validatePositiveInteger(maxColors, 'Maximum palette colors');
+  if (maxColors > 4096) throw new Error('Maximum palette colors cannot exceed 4096');
+  const colors = new Set<number>();
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    if (imageData.data[i + 3] === 0) continue;
+    colors.add((imageData.data[i]! << 16) | (imageData.data[i + 1]! << 8) | imageData.data[i + 2]!);
+    if (colors.size > maxColors)
+      throw new Error(
+        `Palette image has more than ${maxColors} colors. Use { colors: 8 } to generate a photo palette, or provide a palette swatch.`
+      );
   }
-  
-  // Convert Set to array of RGB tuples
-  const palette: ColorRGB[] = Array.from(colorSet).map(colorKey => {
-    const parts = colorKey.split(',').map(Number);
-    if (parts.length !== 3) {
-      throw new Error(`Invalid color key format: ${colorKey}`);
-    }
-    const [r, g, b] = parts;
-    if (r === undefined || g === undefined || b === undefined) {
-      throw new Error(`Invalid color values in key: ${colorKey}`);
-    }
-    return [r, g, b] as const;
-  });
-  
-  // Sort colors for consistent output (by luminance)
-  return palette.sort((a, b) => {
-    const luminanceA = 0.299 * a[0] + 0.587 * a[1] + 0.114 * a[2];
-    const luminanceB = 0.299 * b[0] + 0.587 * b[1] + 0.114 * b[2];
-    return luminanceA - luminanceB;
-  });
+  const palette: ColorRGB[] = Array.from(colors, (color) => [
+    (color >> 16) & 255,
+    (color >> 8) & 255,
+    color & 255,
+  ]);
+  const luminance = (color: ColorRGB) => 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2];
+  return palette.sort((a, b) => luminance(a) - luminance(b));
 }

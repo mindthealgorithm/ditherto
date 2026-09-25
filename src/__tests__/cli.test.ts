@@ -6,9 +6,9 @@ import { parseCliArgs, validateCliArgs, showHelp, processFiles } from '../cli.js
 import { access, writeFile, mkdir } from 'node:fs/promises';
 
 // Mock process.exit and console methods
-const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+const _mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
-const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+const _mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 // Mock fs operations
 vi.mock('node:fs/promises', () => ({
@@ -19,18 +19,12 @@ vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn(),
 }));
 
-vi.mock('../imageProcessor.js', () => ({
-  ditherImage: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
-}));
-
-vi.mock('../imageIO.js', () => ({
-  loadImageData: vi.fn().mockResolvedValue({
+vi.mock('../imageProcessor.js', async importOriginal => ({
+  ...await importOriginal<typeof import('../imageProcessor.js')>(),
+  ditherToImageData: vi.fn().mockResolvedValue({
     data: new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255]),
-    width: 2,
-    height: 2,
-    colorSpace: 'srgb'
+    width: 2, height: 2, colorSpace: 'srgb',
   }),
-  calculateResizeDimensions: vi.fn().mockReturnValue({ width: 2, height: 2 })
 }));
 
 describe('CLI argument parsing', () => {
@@ -312,8 +306,8 @@ describe('file processing', () => {
     expect(writeFile).toHaveBeenCalledWith('test.dithered.png', expect.any(Uint8Array));
   });
 
-  it('should pass all options to ditherImage', async () => {
-    const { ditherImage } = await import('../imageProcessor.js');
+  it('should pass all options to ditherToImageData', async () => {
+    const { ditherToImageData } = await import('../imageProcessor.js');
     
     const args = {
       input: 'input.png',
@@ -333,7 +327,7 @@ describe('file processing', () => {
 
     await processFiles(args);
 
-    expect(ditherImage).toHaveBeenCalledWith('input.png', {
+    expect(ditherToImageData).toHaveBeenCalledWith('input.png', {
       algorithm: 'floyd-steinberg',
       width: 300,
       height: 200,

@@ -16,7 +16,8 @@ export default defineConfig({
     exclude: [
       'node_modules',
       'dist',
-      'examples'
+      'examples',
+      'tests/browser/**'
     ],
 
     // Coverage configuration

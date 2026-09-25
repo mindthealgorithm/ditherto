@@ -1,246 +1,252 @@
 # ditherto
 
-**Pixelate your life by dithering your images to fixed colour palettes**
+Resize an image, then dither it into a fixed palette. A TypeScript library for browsers, workers and Node, with a small PNG CLI and an interactive playground.
 
-A fast, cross-platform TypeScript library for applying classic dithering algorithms to images. Transform photos into retro pixel art with Floyd-Steinberg, Atkinson, or ordered dithering.
+Three algorithms: **Atkinson**, **Floyd–Steinberg**, and deterministic **4×4 Bayer ordered dithering**. Bring your own palette or use black/white, Game Boy, CGA, RGB, or 16-level grayscale.
 
-## Features
+## Try the playground
 
-- 🎨 **Multiple dithering algorithms**: Atkinson, Floyd-Steinberg, Ordered (Bayer)
-- 🎯 **Custom palettes**: Use any color palette or extract from reference images
-- 📱 **Cross-platform**: Works in browsers and Node.js
-- ⚡ **Fast & efficient**: Optimized algorithms with chunky pixel support
-- 🔧 **TypeScript**: Full type safety and IntelliSense support
-- 🎮 **Retro palettes**: Built-in GameBoy, CGA, and grayscale palettes
-
-## Installation
-
-```bash
-npm install ditherto
+```sh
+npm ci
+npm run demo
 ```
 
-## Quick Start
+Open http://127.0.0.1:4173. Upload or drop an image, try the included portrait, coffee and cat photographs, change algorithms and palettes, borrow a chosen number of colors from this image or another photo, adjust exposure/contrast, compare photo averaging with nearest-neighbor resizing, adjust the output width and pixel block size, and download a PNG. Processing happens locally in a worker. **Every change rerenders from the original image.** With “Match preview width” enabled, resizing the page recalculates the output dimensions and pixels too.
 
-### Browser
+## Browser
 
-```javascript
-import { ditherImage } from 'ditherto';
+```ts
+import { ditherToImageData, PALETTES } from 'ditherto/browser';
 
-// Dither an image element with GameBoy palette
-const img = document.querySelector('img');
-const result = await ditherImage(img, {
-  algorithm: 'atkinson',
-  palette: [
-    [15, 56, 15],    // Dark green
-    [48, 98, 48],    // Medium green  
-    [139, 172, 15],  // Light green
-    [155, 188, 15]   // Lightest green
-  ]
-});
-
-// Result is ImageData, ready for canvas
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
-canvas.width = result.width;
-canvas.height = result.height;
-ctx.putImageData(result, 0, 0);
-```
-
-### Node.js
-
-```javascript
-import { ditherImage } from 'ditherto';
-
-// Dither from file path
-const result = await ditherImage('./photo.jpg', {
-  algorithm: 'floyd-steinberg',
-  palette: [[0,0,0], [255,255,255]], // Black & white
-  width: 320,  // Resize to 320px wide
-  step: 2      // 2x2 chunky pixels
-});
-
-// Result is Uint8Array (RGB data)
-console.log(`Dithered to ${result.length / 3} pixels`);
-```
-
-## API Reference
-
-### `ditherImage(input, options)`
-
-Transform an image using dithering algorithms.
-
-**Parameters:**
-- `input`: Image source (file path, HTMLImageElement, Blob, File, ArrayBuffer, or ImageData)
-- `options`: Dithering configuration
-
-**Options:**
-```typescript
-interface DitherOptions {
-  algorithm?: 'atkinson' | 'floyd-steinberg' | 'ordered';
-  palette?: ColorRGB[];           // [[r,g,b], [r,g,b], ...]
-  paletteImg?: InputImageSource;  // Extract palette from image
-  width?: number;                 // Resize width (maintains aspect ratio)
-  height?: number;                // Resize height (maintains aspect ratio)
-  step?: number;                  // Pixel block size (1=normal, 2=chunky, etc.)
-  quality?: number;               // Encoding quality hint (0-1)
-}
-```
-
-**Returns:** `Promise<ImageData | Uint8Array>`
-- Browser: Returns `ImageData` ready for canvas
-- Node.js: Returns `Uint8Array` with RGB pixel data
-
-## Examples
-
-### Classic GameBoy Look
-
-```javascript
-import { ditherImage, PALETTES } from 'ditherto';
-
-const gameBoyResult = await ditherImage('./photo.jpg', {
+const originalImage = document.querySelector('img')!;
+const pixels = await ditherToImageData(originalImage, {
   algorithm: 'atkinson',
   palette: PALETTES.GAMEBOY,
-  width: 160,  // Original GameBoy screen width
-  step: 2      // Chunky pixels for authentic feel
+  width: 320,
+  resample: 'area', // Average fine photographic detail before dithering
 });
+
+const canvas = document.querySelector('canvas')!;
+canvas.width = pixels.width;
+canvas.height = pixels.height;
+canvas.getContext('2d')!.putImageData(pixels, 0, 0);
 ```
 
-### Extract Palette from Reference Image
+Use `ditherto/browser` with browser bundlers: its build contains no Node or native-canvas imports. For direct module imports, serve the built `dist/browser.js` alongside your application. The same entry point accepts RGBA pixels or Blobs in module workers.
 
-```javascript
-// Use colors from one image to dither another
-const result = await ditherImage('./photo.jpg', {
+`ditherToImageData` waits for an image element to load. URL inputs require same-origin access or permission through CORS. For interactive controls, keep the original source and call the function again with new options; do not feed the previous dithered result back in. Large jobs are synchronous during the pixel-processing portion, so run them in a worker, as the playground does.
+
+## Node (20+)
+
+```ts
+import { writeFile } from 'node:fs/promises';
+import { ditherToImageData, PALETTES } from 'ditherto';
+import { encodePng } from 'ditherto/node';
+
+const pixels = await ditherToImageData('./photo.jpg', {
   algorithm: 'floyd-steinberg',
-  paletteImg: './color-reference.png',  // Extract palette from this
-  width: 640
+  palette: PALETTES.GAMEBOY,
+  width: 320,
+  resample: 'area', // Average fine photographic detail before dithering
+});
+await writeFile('./photo.dithered.png', encodePng(pixels));
+```
+
+`@napi-rs/canvas` handles Node decoding and PNG encoding. PNG output retains dimensions and transparency. CommonJS `require('ditherto')` and `require('ditherto/node')` are also supported.
+
+## API
+
+### `ditherToImageData(input, options?)`
+
+The preferred API returns `{ width, height, data, colorSpace }` in every runtime. `data` is a `Uint8ClampedArray` of **RGBA** pixels. In browsers and supported workers the result is a native `ImageData`; in Node it is an equivalent record. Inputs are never modified.
+
+Accepted inputs:
+
+- `ImageData` or an equivalent RGBA record.
+- Browser `HTMLImageElement`, `Blob`, `File`, image URL, `ArrayBuffer` or `Uint8Array`.
+- Node file path, HTTP(S) URL, `Buffer`, `Uint8Array`, `ArrayBuffer`, `Blob` or `File`.
+
+Decoded format support depends on the host browser or Node canvas decoder. Animated files are processed as a single decoded frame, not an animation.
+
+| Option | Default | Behavior |
+| --- | --- | --- |
+| `algorithm` | `'atkinson'` | Built-in name or a registered custom algorithm |
+| `palette` | `PALETTES.BW` | Readonly RGB triples, integer channels 0–255 |
+| `paletteImg` | — | Palette swatch or reference photo; explicit `palette` takes precedence |
+| `paletteColors` | — | Quantize `paletteImg` to at most 1–256 representative colors; omitted means exact extraction |
+| `width`, `height` | Original size | Positive integer bounds; preserve aspect ratio and fit inside both when supplied |
+| `resample` | `'nearest'` | `'area'` averages source-pixel coverage when shrinking photos; both use nearest-neighbor enlargement |
+| `step` | `1` | Positive integer pixel-block size; dimensions do not change |
+| `exposure` | `0` | −4 to +4 photographic stops in linear sRGB, before dithering |
+| `contrast` | `1` | 0–2 slope around the encoded sRGB midpoint; 1 is neutral |
+| `quality` | — | Deprecated compatibility hint; validated but does **not** change pixels or PNG output |
+
+Width/height can upscale as well as downscale. Nearest-neighbor resizing samples pixel centers. Area resizing integrates each destination pixel’s exact source footprint, including fractional ratios, in encoded sRGB (not linear light). It weights colors by alpha before averaging, so invisible RGB cannot create colored fringes. Both filters are deterministic given the same decoded RGBA pixels; host decoders and color management may differ. The playground defaults to area; the library keeps nearest for compatibility. Extremely thin images retain a minimum dimension of one pixel. Decoded inputs and processed outputs are limited to 8192 pixels per side and 16,777,216 pixels total; these are allocation guards, not a decoder memory guarantee.
+
+RGB matching uses squared Euclidean distance in encoded sRGB. Alpha is retained per pixel; fully transparent pixels do not spread error. Blocks sample the top-left visible pixel (the origin when visible) and fill RGB across the block while retaining each pixel's alpha.
+
+### `ditherImage(input, options?)`
+
+Compatibility API: returns `ImageData` in browsers/workers, but raw **RGB** `Uint8Array` bytes in Node. These bytes are **not** a PNG/JPEG and do not include dimensions or alpha. Prefer `ditherToImageData` for new integrations.
+
+### `generatePalette(input, options?)`
+
+For photographs, explicitly request a color budget:
+
+```ts
+import { generatePalette, ditherToImageData } from 'ditherto/browser';
+
+const palette = await generatePalette(referencePhoto, { colors: 8 });
+const pixels = await ditherToImageData(originalImage, {
+  palette,
+  width: 320,
+  resample: 'area',
+  exposure: 0.5, // Half a stop brighter
+  contrast: 1.2, // 20% more contrast
 });
 ```
 
-### Retro CGA 4-Color
+Or use the shorthand `ditherToImageData(originalImage, { paletteImg: referencePhoto, paletteColors: 8 })`. Keep the generated palette to reuse it across size, tone and algorithm changes. The playground caches it in its worker and embeds the RGB values in the copied recipe.
 
-```javascript
-const cgaResult = await ditherImage('./photo.jpg', {
-  algorithm: 'ordered',
-  palette: [
-    [0, 0, 0],       // Black
-    [255, 0, 255],   // Magenta
-    [0, 255, 255],   // Cyan
-    [255, 255, 255]  // White
-  ]
-});
-```
+`colors` is an integer from 1 to 256. Photo quantization uses deterministic, alpha-weighted median cut over a bounded 5-bit-per-channel RGB histogram. Frequent, opaque colors have more influence; invisible pixels are ignored. Output contains **up to** the requested number of unique colors, sorted dark to light. Small palettes already within the budget retain their exact colors. Similar histogram colors can merge; representative colors are weighted averages, not necessarily exact source pixels. A fully transparent photo produces a clear error.
 
-### High-Contrast Black & White
+Without `colors`, the existing exact-swatch behavior remains: extract all unique visible RGB colors, with a default `maxColors: 256` guard (configurable to 4096). Exceeding that guard rejects the image; it does not silently quantize. `colors` and `maxColors` cannot be combined.
 
-```javascript
-const bwResult = await ditherImage('./photo.jpg', {
-  algorithm: 'floyd-steinberg', 
-  palette: [[0,0,0], [255,255,255]],
-  width: 800
-});
-```
+### Exposure and contrast
 
-### Chunky Pixel Art Style
+The processing order is **resize → exposure → contrast → dither**. Exposure doubles linear-light intensity for each positive stop, using the sRGB transfer curve. Contrast changes the slope around encoded sRGB 0.5; the final RGB values are clipped to 0–255. The playground shows contrast as −100% to +100%, corresponding to API factors 0 to 2. Alpha is preserved. Neutral settings reproduce the prior pipeline exactly.
 
-```javascript
-// Create blocky pixel art effect
-const pixelArt = await ditherImage('./photo.jpg', {
+Adjustments affect the image being dithered, not the reference palette. Reset always starts from original pixels. This is an SDR adjustment, not RAW development or highlight recovery. Inputs are assumed to be decoded sRGB, as elsewhere in the pipeline.
+
+### Shared style with per-image tuning
+
+You can hold palette and algorithm constant while adjusting each image independently. This uses ordinary options; no special batch or agent runtime is required.
+
+```ts
+import { ditherToImageData, PALETTES, type DitherOptions } from 'ditherto/browser';
+
+const style = {
   algorithm: 'atkinson',
-  palette: PALETTES.RGB,
-  width: 64,   // Small size
-  step: 4      // 4x4 pixel blocks
+  palette: PALETTES.GAMEBOY,
+} satisfies Pick<DitherOptions, 'algorithm' | 'palette'>;
+
+const tuning: Record<string, Pick<DitherOptions, 'exposure' | 'contrast'>> = {
+  portrait: { exposure: 0.5, contrast: 1.1 },
+  landscape: { exposure: -0.2, contrast: 1.25 },
+};
+
+const pixels = await ditherToImageData('/images/portrait.jpg', {
+  width: 320,
+  resample: 'area',
+  ...tuning.portrait,
+  ...style,
 });
 ```
 
-## Built-in Palettes
+The values above illustrate configuration, not recommended settings for every portrait or landscape. A person or agent can render candidate adjustments from the original, inspect them at the intended display size, and save the chosen options. Keep the shared style fixed during that search when visual consistency is a requirement. Explicit palettes take precedence over palette-image extraction.
 
-```javascript
-import { PALETTES } from 'ditherto';
+The same API supports browser, worker, server and build-time workflows. Callers control scheduling and caching. Determinism applies to identical decoded RGBA input and settings; host image decoders can differ.
 
-PALETTES.BW          // Black & white
-PALETTES.GAMEBOY     // Classic GameBoy green
-PALETTES.RGB         // Basic RGB primaries  
-PALETTES.GRAYSCALE_16 // 16-level grayscale
-PALETTES.CGA_4       // CGA 4-color palette
+### `algorithms.register(algorithm)`
+
+```ts
+import { algorithms } from 'ditherto';
+
+algorithms.register({
+  name: 'my-algorithm',
+  apply(image, palette, step) {
+    // Return an RGBA image record or ImageData.
+    return image;
+  },
+});
 ```
 
-## Algorithms
+The pipeline isolates input pixels before invoking plugins. `algorithms.list()` lists registered names. Palette order breaks nearest-color ties deterministically.
 
-### Atkinson Dithering
-- **Best for**: Art, illustrations, GameBoy-style graphics
-- **Characteristics**: Preserves detail, creates distinct patterns
-- **Invented by**: Bill Atkinson (Apple)
+### DOM helpers
 
-### Floyd-Steinberg Dithering  
-- **Best for**: Photographs, natural images
-- **Characteristics**: Smooth gradients, minimal artifacts
-- **Most common**: Standard error diffusion algorithm
+```html
+<img class="dither" data-algorithm="ordered" data-width="160" data-resample="area" src="photo.png" alt="A mountain landscape">
+```
 
-### Ordered (Bayer) Dithering
-- **Best for**: Fast processing, consistent patterns
-- **Characteristics**: Regular texture, no error accumulation
-- **Good for**: Real-time applications
+```ts
+import { autoDitherDOM } from 'ditherto/browser';
+const canvases = await autoDitherDOM('img.dither');
+```
 
-## Advanced Usage
+The helper waits for loading, replaces matching images with canvases, retains their accessible labels, and rejects on failure. `ditherImageElement(img, options)` processes one element. Palette and tone attributes are `data-palette-img`, `data-palette-colors`, `data-exposure`, and `data-contrast`. These are one-shot helpers. For resize observation, independent updates and cleanup, use the optional DOM entry below. Explicit options override data attributes in the one-shot helpers.
 
-### Custom Palette Generation
+## Responsive images and per-image settings
 
-```javascript
-import { generatePalette } from 'ditherto';
+Import `ditherto/dom` when you want the library to manage image elements. It reexports the browser API and adds `observeDitherDOM`; importing it is safe during server rendering, but calling the helper requires a browser with `ResizeObserver`. The ordinary browser entry does not include this integration.
 
-// Extract unique colors from an image
-const palette = await generatePalette('./reference-colors.png');
-console.log(`Found ${palette.length} unique colors`);
+```html
+<div class="photo"><img class="dither" src="portrait.jpg" alt="Portrait" data-exposure="0.4"></div>
+<div class="photo"><img class="dither" src="landscape.jpg" alt="Landscape" data-contrast="1.2"></div>
+```
 
-// Use extracted palette for dithering
-const result = await ditherImage('./photo.jpg', {
+```ts
+import { observeDitherDOM, PALETTES } from 'ditherto/dom';
+
+const gallery = observeDitherDOM('img.dither', {
+  palette: PALETTES.GAMEBOY,
   algorithm: 'atkinson',
-  palette: palette.slice(0, 8)  // Use first 8 colors
+  resample: 'area',
+}, {
+  onError: (error, image) => console.error(image.src, error),
 });
+
+const results = await gallery.ready; // Promise.allSettled results, in selector order
+await gallery.images[0].update({ exposure: 0.7 });
+await gallery.images[0].update({ exposure: undefined }); // use the attribute/default again
+// After changing the original src or attributes:
+await gallery.images[0].refresh();
+// On unmount: release pixels/observers and restore the same original nodes.
+gallery.destroy();
 ```
 
-### Batch Processing (Node.js)
+The selector is a snapshot. Use `root` to scope it to a container or shadow root; bind newly inserted images separately. Settings are merged in this order: **shared defaults → image data attributes → `resolveOptions(image)` → `handle.update()` overrides**. A resolver can retrieve per-image settings from a saved manifest. `update()` merges changes; `undefined` removes an override. `refresh()` rereads source pixels and settings while retaining overrides. `gallery.refresh()` refreshes all bindings and returns settled results.
 
-```javascript
-import { ditherImage } from 'ditherto';
-import { readdir, writeFile } from 'fs/promises';
+Give each image a dedicated wrapper with a width determined by your layout (for example, a grid cell). The canvas fills its parent's **content width**, retaining the image's aspect ratio. An optional `width`/`height` caps bitmap resolution, so a lower-resolution image can be displayed larger with crisp pixels. This helper does not reproduce arbitrary `object-fit`, crop, fixed-height or original image width rules. Bitmap resolution is in CSS pixels, independent of device pixel ratio. Renders always start from cached original pixels, never from an earlier dithered result. The cached source stays fixed across resizes; call `refresh()` after changing `src`, `srcset` or `<picture>` selection.
 
-const files = await readdir('./images');
+Each controller has one resize observer and a serial render queue. Updates are coalesced (default `debounceMs: 60`), and superseded calls resolve with the latest result. Initially hidden or disconnected wrappers resolve to `null`; a later observed width change schedules rendering. An unloaded image waits for its native load/error event without holding the queue, so native lazy loading can delay its `ready` result until it enters view. A failed image retains its original or last successful canvas; inspect `handle.error` or supply `onError`. Accessible labels are copied to the canvas. Event listeners on the original image resume when that same node is restored; interaction intended during dithering should be attached to the wrapper.
 
-for (const file of files) {
-  if (file.endsWith('.jpg')) {
-    const result = await ditherImage(`./images/${file}`, {
-      algorithm: 'floyd-steinberg',
-      palette: PALETTES.GAMEBOY,
-      width: 320
-    });
-    
-    await writeFile(`./output/${file}.rgb`, result);
-  }
-}
+Call `handle.destroy()` for one image or `gallery.destroy()` for the group. Disposal rejects pending per-image calls with `AbortError`, releases cached pixels and prevents late results from painting. It does not stop computations already running in an injected renderer. DOM removal alone does not dispose a binding; framework integrations should call `destroy()` on unmount.
+
+The default renderer runs on the calling thread, yielding between images. For expensive interactive processing, supply `render(source, options): Promise<ImageData>` backed by a worker. It receives an isolated pixel copy that may be transferred or modified. One worker can serve the whole group: see [the responsive gallery](examples/responsive-demo.html) and [its shared-worker wiring](examples/responsive-demo.js). Worker lifetime belongs to the caller. The gallery includes shared palette/algorithm controls, independent exposures, layout resizing, and original/processed toggling.
+
+## Algorithm behavior
+
+- **Floyd–Steinberg:** left-to-right raster scan; error weights 7/16 right, 3/16 below-left, 5/16 below, 1/16 below-right. Unclamped floating-point error buffers avoid intermediate byte rounding.
+- **Atkinson:** six forward neighbors each receive 1/8 of the error; 1/4 is intentionally discarded. The diffusion implementations use only a few rows of scratch memory.
+- **Ordered:** a fixed 4×4 Bayer matrix with centered thresholds `(rank + 0.5) / 16`. Black/white follows ordinary intensity thresholding. Arbitrary palettes use a documented extension: find the nearest color, choose the best RGB segment from it to another palette color, and use the threshold to select between them. Exact palette colors remain unchanged. This is deterministic, not randomized noise.
+
+See [the design audit](DESIGN_AUDIT.md) for references, compatibility changes, findings and remaining work.
+
+## CLI
+
+```sh
+npx ditherto input.jpg -o output.png --algorithm atkinson --width 320 --resample area --step 2
+npx ditherto --help
 ```
 
-## Performance Tips
+The CLI processes one input at a time and writes PNG only; unsupported output extensions are rejected. Without `-o`, it writes `<input-name>.dithered.png`. Use `--paletteimg colors.png` for a custom swatch, or `--paletteimg reference.jpg --palette-colors 8` for a photo palette. Tone controls are `--exposure 0.5 --contrast 1.2`. For batches, iterate over files in a shell or Node script.
 
-- **Use `step > 1`** for faster processing and pixel art effects
-- **Resize images** before dithering for better performance
-- **Limit palette size** to 2-16 colors for best results
-- **Ordered dithering** is fastest for real-time applications
+## Development
 
-## Browser Support
+```sh
+npm run typecheck
+npm run lint
+npm run test:ci       # unit, oracle, golden PNG, real Node I/O and DOM tests
+npm run test:package  # build + ESM/CJS/CLI/encoder checks
+npx playwright install chromium firefox webkit
+npm run test:browser # Chromium/Firefox/WebKit, photos, workers, resizing, downloads
+npm run benchmark    # reproducible processing benchmark, excludes decode/encode
+npm run dev          # rebuild when TypeScript sources change
+```
 
-- ✅ Modern browsers with Canvas API support
-- ✅ Web Workers and Service Workers  
-- ✅ Node.js 16+ with optional `canvas` package for file loading
+Run `node scripts/review-photos.mjs` after building to generate a side-by-side photographic review sheet in `test-results/`. Fixture sources and licenses are recorded in `tests/fixtures/photos/README.md`.
 
-## License
+The browser test suite captures desktop/mobile previews in `test-results/`. CI uses the committed lockfile and runs Node 20/22 checks plus Chromium, Firefox and WebKit tests. Photo-palette tests cover real decoding, alpha/population weighting, deterministic output, color budgets and separate reference uploads. Tone tests cover exposure stops, contrast endpoints, reset and Node/browser parity. The photographic corpus covers independent Pillow BOX references, fractional ratios, alpha, JPEG EXIF orientations 2–8, tagged sRGB, and lossless WebP. These checks do not certify arbitrary wide-gamut profiles or every browser/OS decoder.
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md) for details.
-
----
-
-Transform your images into beautiful retro pixel art with **ditherto**! 🎨✨
+MIT licensed.

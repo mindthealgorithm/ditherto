@@ -37,8 +37,14 @@ jobs:
       - name: Test
         run: npm run test:ci
 
-      - name: Build
-        run: npm run build
+      - name: Verify package
+        run: npm run test:package
+
+      - name: Install browser
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Verify browser
+        run: npm run test:browser
 
       - name: Publish to npm
         run: npm publish --provenance

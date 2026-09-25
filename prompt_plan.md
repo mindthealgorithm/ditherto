@@ -115,3 +115,32 @@ Each checkbox represents a complete TDD cycle:
 5. Move to next item
 
 This ensures we build a robust, well-tested library that matches the specification exactly.
+
+## Audit implementation update (2026-09)
+
+See [DESIGN_AUDIT.md](DESIGN_AUDIT.md) for the detailed findings and next decisions.
+
+- [x] Correct deterministic Bayer dithering and float-precision diffusion; add independent reference tests.
+- [x] Preserve alpha and validate finite dimensions, step, palette channels and image buffers.
+- [x] Add a consistent RGBA result API, separate PNG encoding and fix Node binary inputs.
+- [x] Replace browser helper no-op tests with exercised DOM behavior and real Chromium checks.
+- [x] Wire existing BW golden PNGs and verify browser/Node parity after resizing.
+- [x] Add a reproducible processing benchmark and bounded palette extraction.
+- [x] Replace the mock demo with the actual library, worker processing and responsive rerendering from the original.
+- [x] Repair build exit, browser dependency isolation, CLI invocation and lockfile-based CI.
+- [x] Real photographic corpus, independent area-downsampling references, JPEG/WebP/EXIF/sRGB fixtures and Firefox/WebKit coverage.
+- [x] Explicit photo resampling across API/CLI/DOM/demo; controls wait during photo loading.
+- [x] Photo palettes with chosen color counts and separate reference uploads; exposure/contrast controls with reset.
+- [x] Review ditherjs feature coverage and record selective algorithm recommendations.
+- [ ] Wide-gamut/CMYK and real-device color-management coverage.
+- [ ] Decode-time resource controls, configurable limits and exhaustive memory profiling.
+
+The broader unfinished Phase 7/8 items above are retained where those remaining tasks still apply.
+
+### Responsive selector integration
+
+- [x] Add optional `ditherto/dom` entry with shared defaults and independent image handles.
+- [x] Retain original nodes/pixels, rerender on parent width changes, and restore on disposal.
+- [x] Serialize/coalesce work, reject stale results, and isolate failed/unloaded images.
+- [x] Add shared-worker photographic gallery with per-image exposure and resize controls.
+- [x] Exercise lifecycle and pixel accuracy in Chromium, Firefox and WebKit; check optional entry declarations and bundle size.

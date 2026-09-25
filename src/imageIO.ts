@@ -1,288 +1,153 @@
-// ABOUTME: Image I/O and processing utilities for cross-environment support
-// ABOUTME: Handles loading images from various sources and resizing with aspect ratio preservation
+import { resizeArea, resizeNearest } from './resample.js';
+import { validateImageDimensions } from './imageData.js';
+export { createImageDataCrossPlatform, validateImageDimensions } from './imageData.js';
+import { loadNodeImage } from './nodeIO.js';
+import type { InputImageSource, ResampleMethod } from './types.js';
+import { validatePixels, validatePositiveInteger } from './validation.js';
 
-import type { InputImageSource } from './types.js';
+/** True for browsers and workers, false in Node (which also provides Blob/File). */
+function isBrowserRuntime(): boolean {
+  return typeof process === 'undefined' || !process.versions?.node;
+}
 
-/**
- * Load ImageData from various input sources with environment detection
- */
+function isPixelSource(input: InputImageSource): input is ImageData {
+  return Boolean(
+    input && typeof input === 'object' && 'data' in input && 'width' in input && 'height' in input
+  );
+}
+
 export async function loadImageData(input: InputImageSource): Promise<ImageData> {
-  if (typeof input === 'string') {
-    // File path - Node.js environment
-    return loadImageDataFromPath(input);
+  if (isPixelSource(input)) {
+    validatePixels(input as ImageData);
+    return input as ImageData;
   }
-  if (input instanceof HTMLImageElement) {
-    // Browser environment
-    return loadImageDataFromHTMLImage(input);
+  if (typeof HTMLImageElement !== 'undefined' && input instanceof HTMLImageElement) {
+    await waitForImage(input);
+    return readBrowserImage(input, input.naturalWidth, input.naturalHeight);
   }
-  if (input instanceof Blob || input instanceof File) {
-    // Browser environment - convert to HTMLImageElement
-    return loadImageDataFromBlob(input);
-  }
-  if (input instanceof ArrayBuffer || input instanceof Uint8Array) {
-    // Convert to Blob first, then process
-    const blob = new Blob([input as BlobPart]);
-    return loadImageDataFromBlob(blob);
-  }
-  
-  throw new Error('Unsupported input image source type');
-}
-
-/**
- * Load image data from file path (Node.js)
- */
-async function loadImageDataFromPath(path: string): Promise<ImageData> {
-  // For Node.js environment, we need to use canvas
-  if (typeof window !== 'undefined') {
-    throw new Error('File path loading not supported in browser environment');
-  }
-  
-  try {
-    // Dynamic import for Node.js-only dependency
-    const { readFile } = await import('node:fs/promises');
-    const canvasPackageName = '@napi-rs/canvas';
-    const canvasModule = await import(canvasPackageName) as { createCanvas: (width: number, height: number) => HTMLCanvasElement; loadImage: (buffer: Buffer) => Promise<HTMLImageElement> };
-    const { createCanvas, loadImage } = canvasModule;
-    
-    const imageBuffer = await readFile(path);
-    const image = await loadImage(imageBuffer);
-    
-    const canvas = createCanvas(image.width, image.height);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('Failed to get 2d context from canvas');
+  if (!isBrowserRuntime()) return loadNodeImage(input);
+  if (typeof input === 'string') return loadBrowserUrl(input);
+  let blob: Blob;
+  if (typeof Blob !== 'undefined' && input instanceof Blob) blob = input;
+  else if (input instanceof ArrayBuffer || input instanceof Uint8Array) {
+    blob = new Blob([new Uint8Array(input instanceof ArrayBuffer ? input : input.slice())]);
+  } else throw new Error('Unsupported input image source type');
+  if (typeof createImageBitmap === 'function') {
+    const bitmap = await createImageBitmap(blob);
+    try {
+      return readBrowserImage(bitmap, bitmap.width, bitmap.height);
+    } finally {
+      bitmap.close();
     }
-    
-    ctx.drawImage(image, 0, 0);
-    return ctx.getImageData(0, 0, image.width, image.height);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('Cannot resolve module')) {
-      throw new Error('@napi-rs/canvas package required for Node.js image loading. Install with: npm install @napi-rs/canvas');
-    }
-    throw new Error(`Failed to load image from path: ${error}`);
   }
-}
-
-/**
- * Load image data from HTMLImageElement (Browser)
- */
-function loadImageDataFromHTMLImage(img: HTMLImageElement): ImageData {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-
-  if (!ctx) {
-    throw new Error('Failed to get 2d context from canvas');
-  }
-
-  // Use naturalWidth/naturalHeight to get actual image dimensions, not rendered size
-  canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
-
-  ctx.drawImage(img, 0, 0);
-  return ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
-}
-
-/**
- * Load image data from Blob/File (Browser)
- */
-async function loadImageDataFromBlob(blob: Blob): Promise<ImageData> {
   const url = URL.createObjectURL(blob);
   try {
-    const img = new Image();
-    img.src = url;
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = reject;
-    });
-    return loadImageDataFromHTMLImage(img);
+    const image = new Image();
+    image.src = url;
+    await waitForImage(image);
+    return readBrowserImage(image, image.naturalWidth, image.naturalHeight);
   } finally {
     URL.revokeObjectURL(url);
   }
 }
 
-/**
- * Resize options for maintaining aspect ratio
- */
+async function loadBrowserUrl(url: string): Promise<ImageData> {
+  if (typeof Image === 'undefined') {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to load image: HTTP ${response.status}`);
+    return loadImageData(await response.blob());
+  }
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+  image.src = url;
+  await waitForImage(image);
+  return readBrowserImage(image, image.naturalWidth, image.naturalHeight);
+}
+
+function waitForImage(image: HTMLImageElement): Promise<void> {
+  if (image.complete) {
+    return image.naturalWidth > 0
+      ? Promise.resolve()
+      : Promise.reject(new Error('Image could not be decoded'));
+  }
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      image.removeEventListener('load', onLoad);
+      image.removeEventListener('error', onError);
+    };
+    const onLoad = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error('Image could not be decoded'));
+    };
+    image.addEventListener('load', onLoad, { once: true });
+    image.addEventListener('error', onError, { once: true });
+  });
+}
+
+function readBrowserImage(image: CanvasImageSource, width: number, height: number): ImageData {
+  validateImageDimensions(width, height);
+  const canvas =
+    typeof OffscreenCanvas !== 'undefined'
+      ? new OffscreenCanvas(width, height)
+      : document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d') as
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
+  if (!context) throw new Error('Failed to get 2d context from canvas');
+  context.drawImage(image, 0, 0);
+  return context.getImageData(0, 0, width, height);
+}
+
 export interface ResizeOptions {
-  /** Maximum width (maintains aspect ratio) */
+  resample?: ResampleMethod;
   width?: number;
-  /** Maximum height (maintains aspect ratio) */
   height?: number;
-  /** Fit mode: 'contain' (default) or 'cover' */
+  /** contain fits within both bounds; cover fills both bounds without cropping. */
   fit?: 'contain' | 'cover';
 }
 
-/**
- * Calculate resize dimensions while preserving aspect ratio
- */
 export function calculateResizeDimensions(
   originalWidth: number,
   originalHeight: number,
   options: ResizeOptions
 ): { width: number; height: number } {
-  if (!options.width && !options.height) {
-    return { width: originalWidth, height: originalHeight };
-  }
-  
-  const { width: maxWidth, height: maxHeight, fit = 'contain' } = options;
-  const aspectRatio = originalWidth / originalHeight;
-  
-  let newWidth = originalWidth;
-  let newHeight = originalHeight;
-  
-  if (maxWidth && maxHeight) {
-    if (fit === 'contain') {
-      // Scale to fit within bounds
-      const scaleWidth = maxWidth / originalWidth;
-      const scaleHeight = maxHeight / originalHeight;
-      const scale = Math.min(scaleWidth, scaleHeight);
-      
-      newWidth = Math.round(originalWidth * scale);
-      newHeight = Math.round(originalHeight * scale);
-    } else {
-      // Scale to cover bounds
-      const scaleWidth = maxWidth / originalWidth;
-      const scaleHeight = maxHeight / originalHeight;
-      const scale = Math.max(scaleWidth, scaleHeight);
-      
-      newWidth = Math.round(originalWidth * scale);
-      newHeight = Math.round(originalHeight * scale);
-    }
-  } else if (maxWidth) {
-    // Scale by width
-    newWidth = maxWidth;
-    newHeight = Math.round(maxWidth / aspectRatio);
-  } else if (maxHeight) {
-    // Scale by height
-    newHeight = maxHeight;
-    newWidth = Math.round(maxHeight * aspectRatio);
-  }
-  
-  return { width: newWidth, height: newHeight };
+  validatePositiveInteger(originalWidth, 'Original width');
+  validatePositiveInteger(originalHeight, 'Original height');
+  if (options.width !== undefined) validatePositiveInteger(options.width, 'Width');
+  if (options.height !== undefined) validatePositiveInteger(options.height, 'Height');
+  if (options.fit !== undefined && options.fit !== 'contain' && options.fit !== 'cover')
+    throw new Error('Invalid resize fit');
+  let scale = 1;
+  if (options.width !== undefined && options.height !== undefined) {
+    const scales = [options.width / originalWidth, options.height / originalHeight];
+    scale = options.fit === 'cover' ? Math.max(...scales) : Math.min(...scales);
+  } else if (options.width !== undefined) scale = options.width / originalWidth;
+  else if (options.height !== undefined) scale = options.height / originalHeight;
+  const width = Math.max(1, Math.round(originalWidth * scale));
+  const height = Math.max(1, Math.round(originalHeight * scale));
+  validateImageDimensions(width, height);
+  return { width, height };
 }
 
-/**
- * Resize ImageData to new dimensions
- */
+/** Shared deterministic resizing in Node, browsers and workers. Defaults to nearest. */
 export async function resizeImageData(
   imageData: ImageData,
   options: ResizeOptions
 ): Promise<ImageData> {
-  const { width: newWidth, height: newHeight } = calculateResizeDimensions(
-    imageData.width,
-    imageData.height,
-    options
-  );
-
-  console.log(`[resizeImageData] Original: ${imageData.width}x${imageData.height}, Target: ${newWidth}x${newHeight}`);
-
-  // If no resize needed, return original
-  if (newWidth === imageData.width && newHeight === imageData.height) {
-    console.log('[resizeImageData] No resize needed');
-    return imageData;
-  }
-  
-  // Create canvas for resizing
-  const canvas = typeof document !== 'undefined' 
-    ? document.createElement('canvas')
-    : await createNodeCanvas(imageData.width, imageData.height);
-  
-  if (!canvas) {
-    throw new Error('Failed to create canvas for resizing');
-  }
-    
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Failed to get 2d context for resizing');
-  }
-  
-  // Set original size and draw image data
-  canvas.width = imageData.width;
-  canvas.height = imageData.height;
-  ctx.putImageData(imageData, 0, 0);
-  
-  // Create output canvas at new size
-  const outputCanvas = typeof document !== 'undefined'
-    ? document.createElement('canvas') 
-    : await createNodeCanvas(newWidth, newHeight);
-  
-  if (!outputCanvas) {
-    throw new Error('Failed to create output canvas');
-  }
-    
-  const outputCtx = outputCanvas.getContext('2d');
-  if (!outputCtx) {
-    throw new Error('Failed to get 2d context for output');
-  }
-  
-  outputCanvas.width = newWidth;
-  outputCanvas.height = newHeight;
-  
-  // Use nearest-neighbor scaling to preserve original pixel values
-  outputCtx.imageSmoothingEnabled = false;
-  if ('imageSmoothingQuality' in outputCtx) {
-    outputCtx.imageSmoothingQuality = 'low';
-  }
-  
-  // Draw resized image - use 9-parameter version to properly scale source to destination
-  outputCtx.drawImage(
-    canvas as HTMLCanvasElement,
-    0, 0, imageData.width, imageData.height,  // source rectangle
-    0, 0, newWidth, newHeight                 // destination rectangle
-  );
-
-  return outputCtx.getImageData(0, 0, newWidth, newHeight);
-}
-
-/**
- * Create canvas in Node.js environment
- */
-async function createNodeCanvas(width: number, height: number): Promise<{ width: number; height: number; getContext: (type: string) => CanvasRenderingContext2D | null }> {
-  try {
-    // Use dynamic import for ES modules
-    const canvasModule = await import('@napi-rs/canvas');
-    const { createCanvas } = canvasModule;
-    return createCanvas(width, height) as unknown as { width: number; height: number; getContext: (type: string) => CanvasRenderingContext2D | null };
-  } catch (error) {
-    // Log the actual error to help debug
-    console.error('Canvas creation failed:', error);
-    throw new Error('@napi-rs/canvas package required for Node.js image resizing. Install with: npm install @napi-rs/canvas');
-  }
-}
-
-/**
- * Validate image dimensions
- */
-export function validateImageDimensions(width: number, height: number): void {
-  if (width <= 0 || height <= 0) {
-    throw new Error(`Invalid image dimensions: ${width}x${height}`);
-  }
-  if (width > 8192 || height > 8192) {
-    throw new Error(`Image dimensions too large: ${width}x${height} (max 8192x8192)`);
-  }
-  if (!Number.isInteger(width) || !Number.isInteger(height)) {
-    throw new Error(`Image dimensions must be integers: ${width}x${height}`);
-  }
-}
-
-/**
- * Create ImageData in a cross-platform way
- */
-export function createImageDataCrossPlatform(
-  data: Uint8ClampedArray,
-  width: number,
-  height: number
-): ImageData {
-  if (typeof ImageData !== 'undefined') {
-    // Create a proper Uint8ClampedArray with ArrayBuffer (not SharedArrayBuffer)
-    const safeData = new Uint8ClampedArray(data);
-    return new ImageData(safeData, width, height);
-  }
-  // Mock ImageData for Node environment
-  return {
-    data,
-    width,
-    height,
-    colorSpace: 'srgb' as const
-  } as ImageData;
+  validatePixels(imageData);
+  const method = options.resample ?? 'nearest';
+  if (method !== 'nearest' && method !== 'area')
+    throw new Error('Resample must be nearest or area');
+  const { width, height } = calculateResizeDimensions(imageData.width, imageData.height, options);
+  if (width === imageData.width && height === imageData.height) return imageData;
+  return method === 'area'
+    ? resizeArea(imageData, width, height)
+    : resizeNearest(imageData, width, height);
 }

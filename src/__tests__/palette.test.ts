@@ -1,82 +1,8 @@
 // ABOUTME: Tests for palette extraction functionality
-// ABOUTME: Validates color extraction from PNG images and palette utilities
+// ABOUTME: Exercises real fixture decoding and exact palette extraction
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { generatePalette } from '../palette/extract.js';
-import type { ColorRGB } from '../types.js';
-
-// Helper function to create mock ImageData
-function createMockImageData(width: number, height: number, colors: ColorRGB[]): ImageData {
-  const data = new Uint8ClampedArray(width * height * 4);
-  
-  for (let i = 0; i < width * height; i++) {
-    const colorIndex = i % colors.length;
-    const color = colors[colorIndex];
-    const pixelIndex = i * 4;
-    
-    data[pixelIndex] = color[0];     // R
-    data[pixelIndex + 1] = color[1]; // G
-    data[pixelIndex + 2] = color[2]; // B
-    data[pixelIndex + 3] = 255;      // A (opaque)
-  }
-  
-  return { data, width, height, colorSpace: 'srgb' } as ImageData;
-}
-
-// Mock the file loading for testing
-vi.mock('../palette/extract.js', async () => {
-  const actual = await vi.importActual('../palette/extract.js') as { extractColorsFromImageData: (data: ImageData) => ColorRGB[] };
-  
-  return {
-    ...actual,
-    generatePalette: vi.fn().mockImplementation(async (input: string): Promise<ColorRGB[]> => {
-      // Mock different test fixtures
-      switch (input) {
-        case 'tests/fixtures/palettes/rgb-palette.png': {
-          const mockData = createMockImageData(3, 1, [
-            [255, 0, 0], [0, 255, 0], [0, 0, 255]
-          ]);
-          return actual.extractColorsFromImageData(mockData);
-        }
-        case 'tests/fixtures/palettes/bw-palette.png': {
-          const mockData = createMockImageData(2, 1, [
-            [0, 0, 0], [255, 255, 255]
-          ]);
-          return actual.extractColorsFromImageData(mockData);
-        }
-        case 'tests/fixtures/palettes/gameboy-palette.png': {
-          const mockData = createMockImageData(4, 1, [
-            [15, 56, 15], [48, 98, 48], [139, 172, 15], [155, 188, 15]
-          ]);
-          return actual.extractColorsFromImageData(mockData);
-        }
-        case 'tests/fixtures/input/solid-black-4x4.png': {
-          const mockData = createMockImageData(4, 4, [[0, 0, 0]]);
-          return actual.extractColorsFromImageData(mockData);
-        }
-        case 'tests/fixtures/input/solid-white-4x4.png': {
-          const mockData = createMockImageData(4, 4, [[255, 255, 255]]);
-          return actual.extractColorsFromImageData(mockData);
-        }
-        case 'tests/fixtures/input/checkerboard-4x4.png': {
-          const mockData = createMockImageData(4, 4, [
-            [0, 0, 0], [255, 255, 255]
-          ]);
-          return actual.extractColorsFromImageData(mockData);
-        }
-        case 'tests/fixtures/input/gradient-4x4.png': {
-          const mockData = createMockImageData(4, 4, [
-            [0, 0, 0], [85, 85, 85], [170, 170, 170], [255, 255, 255]
-          ]);
-          return actual.extractColorsFromImageData(mockData);
-        }
-        default:
-          throw new Error(`Mock fixture not found: ${input}`);
-      }
-    })
-  };
-});
-
 describe('generatePalette', () => {
   it('should extract unique colors from a PNG image', async () => {
     const palette = await generatePalette('tests/fixtures/palettes/rgb-palette.png');
@@ -181,14 +107,8 @@ describe('generatePalette', () => {
   it('should extract multiple colors from gradient', async () => {
     const palette = await generatePalette('tests/fixtures/input/gradient-4x4.png');
     
-    // Should extract all gradient colors
-    expect(palette.length).toBe(4);
-    
-    // Should be sorted by luminance (darkest to lightest)
-    expect(palette[0]).toEqual([0, 0, 0]);
-    expect(palette[1]).toEqual([85, 85, 85]);
-    expect(palette[2]).toEqual([170, 170, 170]);
-    expect(palette[3]).toEqual([255, 255, 255]);
+    // Actual PNG fixture includes eleven grayscale values (the old mock invented four).
+    expect(palette).toEqual([0,64,85,128,160,170,192,200,210,230,255].map(v => [v,v,v]));
   });
 });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, } from 'vitest';
 import { algorithms } from '../algorithmRegistry.js';
 import type { DitherAlgorithm } from '../types.js';
 
@@ -11,7 +11,7 @@ describe('AlgorithmRegistry', () => {
   // Create mock algorithms for testing
   const mockAlgorithm: DitherAlgorithm = {
     name: 'test-algorithm',
-    apply: (data, palette, step) => {
+    apply: (data, _palette, _step) => {
       // Simple mock that just returns the input data
       return data;
     }
@@ -19,7 +19,7 @@ describe('AlgorithmRegistry', () => {
 
   const anotherMockAlgorithm: DitherAlgorithm = {
     name: 'another-test',
-    apply: (data, palette, step) => data
+    apply: (data, _palette, _step) => data
   };
 
   // Note: We don't clear the registry in beforeEach because built-in algorithms

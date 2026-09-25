@@ -16,7 +16,7 @@ export function colorDistance(color1: ColorRGB, color2: ColorRGB): number {
 /**
  * Find the closest color in a palette to the given color
  */
-export function findClosestColor(color: ColorRGB, palette: ColorRGB[]): ColorRGB {
+export function findClosestColor(color: ColorRGB, palette: readonly ColorRGB[]): ColorRGB {
   if (palette.length === 0) {
     throw new Error('Palette cannot be empty');
   }
@@ -25,7 +25,8 @@ export function findClosestColor(color: ColorRGB, palette: ColorRGB[]): ColorRGB
   let closest = palette[0]!; // Non-null assertion since we checked length > 0
   
   for (const paletteColor of palette) {
-    const distance = colorDistance(color, paletteColor);
+    const distance = (color[0] - paletteColor[0]) ** 2 +
+      (color[1] - paletteColor[1]) ** 2 + (color[2] - paletteColor[2]) ** 2;
     
     if (distance < minDistance) {
       minDistance = distance;
@@ -92,7 +93,7 @@ export function getPalette(name: keyof typeof PALETTES): readonly ColorRGB[] {
  * Create a grayscale palette with the specified number of levels
  */
 export function createGrayscalePalette(levels: number): ColorRGB[] {
-  if (levels < 2) {
+  if (!Number.isInteger(levels) || levels < 2 || levels > 256) {
     throw new Error('Grayscale palette must have at least 2 levels');
   }
   

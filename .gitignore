@@ -149,3 +149,7 @@ dist
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+.build/
+playwright-report/
+test-results/

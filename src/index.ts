@@ -6,6 +6,8 @@
 
 // Core types
 export type { 
+  GeneratePaletteOptions,
+  ResampleMethod,
   DitherOptions, 
   InputImageSource, 
   ColorRGB,
@@ -13,7 +15,7 @@ export type {
 } from './types.js';
 
 // Core functions  
-export { ditherImage } from './imageProcessor.js';
+export { ditherImage, ditherToImageData } from './imageProcessor.js';
 export { generatePalette } from './palette/extract.js';
 
 // Palettes

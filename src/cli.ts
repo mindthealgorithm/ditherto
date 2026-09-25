@@ -1,28 +1,40 @@
 /**
  * CLI wrapper for ditherto
- * 
+ *
  * Provides command-line interface for batch processing images
  */
 
 import { parseArgs } from 'node:util';
 import { writeFile, access, mkdir } from 'node:fs/promises';
-import { dirname } from 'node:path';
-import { ditherImage } from './imageProcessor.js';
-import { convertToUint8Array } from './outputFormat.js';
-import { loadImageData, calculateResizeDimensions } from './imageIO.js';
+import { dirname, extname } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { realpathSync } from 'node:fs';
+import { encodePng } from './node.js';
+import { ditherToImageData, validateOptions } from './imageProcessor.js';
 import type { DitherOptions } from './types.js';
 
 export interface CliArgs {
   input: string;
   output: string | undefined;
   algorithm: 'atkinson' | 'floyd-steinberg' | 'ordered' | undefined;
+  resample?: DitherOptions['resample'];
   paletteImg: string | undefined;
+  paletteColors?: number;
+  exposure?: number;
+  contrast?: number;
   width: number | undefined;
   height: number | undefined;
   step: number | undefined;
   quality: number | undefined;
   help: boolean | undefined;
   version: boolean | undefined;
+}
+
+function parseNumber(value: string | undefined, label: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (value.trim() === '' || !Number.isFinite(Number(value)))
+    throw new Error(`${label} must be a number`);
+  return Number(value);
 }
 
 export function parseCliArgs(args: string[]): CliArgs {
@@ -32,6 +44,10 @@ export function parseCliArgs(args: string[]): CliArgs {
       output: { type: 'string', short: 'o' },
       algorithm: { type: 'string' },
       paletteimg: { type: 'string' },
+      'palette-colors': { type: 'string' },
+      resample: { type: 'string' },
+      exposure: { type: 'string' },
+      contrast: { type: 'string' },
       width: { type: 'string' },
       height: { type: 'string' },
       step: { type: 'string' },
@@ -42,48 +58,35 @@ export function parseCliArgs(args: string[]): CliArgs {
     allowPositionals: true,
   });
 
-  if (!positionals[0]) {
+  if (!positionals[0] && !values.help && !values.version) {
     throw new Error('Input file is required');
   }
 
+  if (positionals.length > 1)
+    throw new Error('Expected one input file; use a shell loop for batch processing');
+
   const result: CliArgs = {
-    input: positionals[0],
+    input: positionals[0] ?? '',
     output: values.output,
     algorithm: values.algorithm as CliArgs['algorithm'],
     paletteImg: values.paletteimg,
-    width: values.width as number | undefined,
-    height: values.height as number | undefined,
-    step: values.step as number | undefined,
-    quality: values.quality as number | undefined,
+    width: parseNumber(values.width, 'Width'),
+    height: parseNumber(values.height, 'Height'),
+    step: parseNumber(values.step, 'Step'),
+    quality: parseNumber(values.quality, 'Quality'),
     help: values.help,
     version: values.version,
   };
 
-  // Parse numeric values
-  if (values.width) {
-    const width = Number.parseInt(values.width);
-    if (Number.isNaN(width)) throw new Error('Width must be a number');
-    result.width = width;
+  if (values.exposure !== undefined) result.exposure = parseNumber(values.exposure, 'Exposure')!;
+  if (values.contrast !== undefined) result.contrast = parseNumber(values.contrast, 'Contrast')!;
+  if (values['palette-colors'] !== undefined)
+    result.paletteColors = parseNumber(values['palette-colors'], 'Palette color count')!;
+  if (values.resample !== undefined) {
+    if (values.resample !== 'nearest' && values.resample !== 'area')
+      throw new Error('Resample must be nearest or area');
+    result.resample = values.resample;
   }
-
-  if (values.height) {
-    const height = Number.parseInt(values.height);
-    if (Number.isNaN(height)) throw new Error('Height must be a number');
-    result.height = height;
-  }
-
-  if (values.step) {
-    const step = Number.parseInt(values.step);
-    if (Number.isNaN(step)) throw new Error('Step must be a number');
-    result.step = step;
-  }
-
-  if (values.quality) {
-    const quality = Number.parseFloat(values.quality);
-    if (Number.isNaN(quality)) throw new Error('Quality must be a number');
-    result.quality = quality;
-  }
-
   return result;
 }
 
@@ -96,21 +99,7 @@ export function validateCliArgs(args: CliArgs): void {
     throw new Error('Invalid algorithm. Must be: atkinson, floyd-steinberg, or ordered');
   }
 
-  if (args.width !== undefined && args.width <= 0) {
-    throw new Error('Width must be greater than 0');
-  }
-
-  if (args.height !== undefined && args.height <= 0) {
-    throw new Error('Height must be greater than 0');
-  }
-
-  if (args.step !== undefined && args.step <= 0) {
-    throw new Error('Step must be greater than 0');
-  }
-
-  if (args.quality !== undefined && (args.quality < 0 || args.quality > 1)) {
-    throw new Error('Quality must be between 0 and 1');
-  }
+  validateOptions(buildDitherOptions(args));
 }
 
 export function showHelp(): void {
@@ -123,11 +112,15 @@ Usage:
 Options:
   -o, --output <file>     Output file path
   --algorithm <name>      Dither algorithm (atkinson|floyd-steinberg|ordered)
-  --paletteimg <file>     PNG file for palette extraction
+  --paletteimg <file>     Swatch or photo for palette extraction
+  --palette-colors <n>    Choose up to 1–256 colors from paletteimg
   --width <number>        Target max width
   --height <number>       Target max height  
+  --resample <method>     Resize filter (nearest|area), default nearest
+  --exposure <stops>      Exposure in stops (-4 to 4), default 0
+  --contrast <factor>     Contrast slope (0 to 2), default 1
   --step <number>         Pixel block size (>=1)
-  --quality <number>      Output quality (0-1)
+  --quality <number>      Reserved quality hint (PNG is lossless)
   -h, --help              Show this help
   -v, --version           Show version
 `);
@@ -153,11 +146,7 @@ async function validateInputFile(inputPath: string): Promise<void> {
  */
 async function ensureOutputDirectory(outputPath: string): Promise<void> {
   const outputDir = dirname(outputPath);
-  try {
-    await mkdir(outputDir, { recursive: true });
-  } catch {
-    // Directory might already exist, ignore error
-  }
+  await mkdir(outputDir, { recursive: true });
 }
 
 /**
@@ -165,94 +154,40 @@ async function ensureOutputDirectory(outputPath: string): Promise<void> {
  */
 function buildDitherOptions(args: CliArgs): DitherOptions {
   const options: DitherOptions = {};
-  
+
   if (args.algorithm) options.algorithm = args.algorithm;
+  if (args.resample !== undefined) options.resample = args.resample;
   if (args.paletteImg) options.paletteImg = args.paletteImg;
-  if (args.width) options.width = args.width;
-  if (args.height) options.height = args.height;
-  if (args.step) options.step = args.step;
-  if (args.quality) options.quality = args.quality;
-  
+  if (args.paletteColors !== undefined) options.paletteColors = args.paletteColors;
+  if (args.exposure !== undefined) options.exposure = args.exposure;
+  if (args.contrast !== undefined) options.contrast = args.contrast;
+  if (args.width !== undefined) options.width = args.width;
+  if (args.height !== undefined) options.height = args.height;
+  if (args.step !== undefined) options.step = args.step;
+  if (args.quality !== undefined) options.quality = args.quality;
+
   return options;
 }
 
-/**
- * Convert RGB data to PNG format
- */
-async function convertToPNG(rgbData: Uint8Array, width: number, height: number): Promise<Buffer> {
-  // Dynamic import for Node.js-only dependency
-  const canvasModule = await import('@napi-rs/canvas');
-  const { createCanvas } = canvasModule;
-  
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext('2d');
-  
-  // Create RGBA data from RGB data
-  const rgbaData = new Uint8ClampedArray(width * height * 4);
-  
-  // Convert RGB to RGBA
-  for (let i = 0, j = 0; i < rgbData.length; i += 3, j += 4) {
-    rgbaData[j] = rgbData[i]!;       // Red
-    rgbaData[j + 1] = rgbData[i + 1]!; // Green
-    rgbaData[j + 2] = rgbData[i + 2]!; // Blue
-    rgbaData[j + 3] = 255;           // Alpha (opaque)
-  }
-  
-  // Create ImageData using canvas context createImageData
-  const imageData = ctx.createImageData(width, height);
-  imageData.data.set(rgbaData);
-  
-  // Put ImageData on canvas
-  ctx.putImageData(imageData, 0, 0);
-  
-  // Export as PNG
-  return canvas.toBuffer('image/png');
-}
-
-/**
- * Write processed image to output file
- */
-async function writeOutput(data: Uint8Array, args: CliArgs, width: number, height: number): Promise<void> {
-  const outputPath = args.output || args.input.replace(/\.[^.]+$/, '.dithered.png');
-  
-  // Convert RGB data to PNG
-  const pngBuffer = await convertToPNG(data, width, height);
-  
-  await writeFile(outputPath, pngBuffer);
-  console.log(`Processed: ${args.input} -> ${outputPath}`);
-}
-
+/** Load once, retain dimensions/alpha, and only write extensions we actually encode. */
 export async function processFiles(args: CliArgs): Promise<void> {
-  if (!args.input) {
-    throw new Error('Input file is required');
-  }
-
-  // Validate input and prepare output
+  validateCliArgs(args);
+  const extension = extname(args.input);
+  const output =
+    args.output ??
+    `${extension ? args.input.slice(0, -extension.length) : args.input}.dithered.png`;
+  if (extname(output).toLowerCase() !== '.png')
+    throw new Error('Output must use .png; other encoders are not yet supported');
   await validateInputFile(args.input);
-  if (args.output) {
-    await ensureOutputDirectory(args.output);
-  }
-
-  // Build options and process
-  const options = buildDitherOptions(args);
-
+  await ensureOutputDirectory(output);
   try {
-    const result = await ditherImage(args.input, options);
-    
-    // If we got Uint8Array (Node.js default), we need to reconstruct ImageData
-    if (result instanceof Uint8Array) {
-      // Unfortunately, we lost the dimensions. Let's load the original image to get dimensions
-      const originalImageData = await loadImageData(args.input);
-      const resizedDimensions = calculateResizeDimensions(originalImageData.width, originalImageData.height, options);
-      
-      await writeOutput(result, args, resizedDimensions.width, resizedDimensions.height);
-    } else {
-      // We have ImageData with dimensions
-      const outputData = convertToUint8Array(result);
-      await writeOutput(outputData, args, result.width, result.height);
-    }
+    const result = await ditherToImageData(args.input, buildDitherOptions(args));
+    await writeFile(output, encodePng(result));
+    console.log(`Processed: ${args.input} -> ${output}`);
   } catch (error) {
-    throw new Error(`Failed to process ${args.input}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to process ${args.input}: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -278,15 +213,6 @@ async function main(): Promise<void> {
   }
 }
 
-// Check if we're being run as main module
-// This handles both direct execution and npx execution
-const isMain = import.meta.url === `file://${process.argv[1]}` || 
-               process.argv[1]?.endsWith('cli.js') ||
-               process.argv[1]?.endsWith('ditherto');
-
-if (isMain) {
-  main().catch((error) => {
-    console.error('Error:', error);
-    process.exit(1);
-  });
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
+  void main();
 }

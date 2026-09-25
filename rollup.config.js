@@ -1,111 +1,44 @@
-import typescript from '@rollup/plugin-typescript';
 import dts from 'rollup-plugin-dts';
 
-const external = ['fs', 'path', 'url'];
-
-const commonConfig = {
-  external,
-};
+const external = (id) => id.startsWith('node:') || id === '@napi-rs/canvas';
+const entries = ['index', 'browser', 'dom', 'node', 'cli'];
 
 export default [
-  // Main library - ESM
-  {
-    ...commonConfig,
-    input: 'src/index.ts',
-    output: {
-      file: 'dist/index.js',
-      format: 'es',
-      sourcemap: true,
-    },
-    plugins: [
-      typescript({
-        tsconfig: './tsconfig.json',
-        declaration: false,
-      }),
+  ...entries.map((name) => ({
+    input: `.build/${name}.js`,
+    external,
+    // Remove the entire Node loader from the dedicated browser bundle, including
+    // dynamic native imports that consumer bundlers would otherwise try to resolve.
+    plugins:
+      (name === 'browser' || name === 'dom')
+        ? [
+            {
+              name: 'browser-image-loader',
+              resolveId(source) {
+                if (source === './nodeIO.js') return '\0browser-node-loader';
+              },
+              load(id) {
+                if (id === '\0browser-node-loader')
+                  return 'export function loadNodeImage() { throw new Error("Use the main ditherto entry point for Node image loading"); }';
+              },
+            },
+          ]
+        : [],
+    output: [
+      {
+        file: `dist/${name}.js`,
+        format: 'es',
+        ...(name === 'cli' ? { banner: '#!/usr/bin/env node' } : {}),
+      },
+      ...(name === 'cli' ? [] : [{ file: `dist/${name}.cjs`, format: 'cjs' }]),
     ],
-  },
-  // Main library - CommonJS
-  {
-    ...commonConfig,
-    input: 'src/index.ts',
-    output: {
-      file: 'dist/index.cjs',
-      format: 'cjs',
-      sourcemap: true,
-    },
-    plugins: [
-      typescript({
-        tsconfig: './tsconfig.json',
-        declaration: false,
-      }),
-    ],
-  },
-  // Browser helper - ESM
-  {
-    ...commonConfig,
-    input: 'src/browser.ts',
-    output: {
-      file: 'dist/browser.js',
-      format: 'es',
-      sourcemap: true,
-    },
-    plugins: [
-      typescript({
-        tsconfig: './tsconfig.json',
-        declaration: false,
-      }),
-    ],
-  },
-  // Browser helper - CommonJS
-  {
-    ...commonConfig,
-    input: 'src/browser.ts',
-    output: {
-      file: 'dist/browser.cjs',
-      format: 'cjs',
-      sourcemap: true,
-    },
-    plugins: [
-      typescript({
-        tsconfig: './tsconfig.json',
-        declaration: false,
-      }),
-    ],
-  },
-  // CLI
-  {
-    ...commonConfig,
-    input: 'src/cli.ts',
-    output: {
-      file: 'dist/cli.js',
-      format: 'es',
-      sourcemap: true,
-      banner: '#!/usr/bin/env node',
-    },
-    plugins: [
-      typescript({
-        tsconfig: './tsconfig.json',
-        declaration: false,
-      }),
-    ],
-  },
-  // Type definitions
-  {
-    ...commonConfig,
-    input: 'src/index.ts',
-    output: {
-      file: 'dist/index.d.ts',
-      format: 'es',
-    },
-    plugins: [dts()],
-  },
-  {
-    ...commonConfig,
-    input: 'src/browser.ts',
-    output: {
-      file: 'dist/browser.d.ts',
-      format: 'es',
-    },
-    plugins: [dts()],
-  },
+  })),
+  ...entries
+    .filter((name) => name !== 'cli')
+    .map((name) => ({
+      input: `.build/${name}.d.ts`,
+      external,
+      output: { file: `dist/${name}.d.ts`, format: 'es' },
+      plugins: [dts()],
+    })),
 ];

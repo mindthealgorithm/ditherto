@@ -2,8 +2,7 @@
 // ABOUTME: Covers ImageData to various output formats with quality parameters
 
 import { describe, it, expect } from 'vitest';
-import { createSolidImageData, createImageData, TEST_PALETTES } from './testUtils.js';
-import type { ColorRGB } from '../types.js';
+import { createSolidImageData, createImageData, } from './testUtils.js';
 
 import { 
   convertToUint8Array, 

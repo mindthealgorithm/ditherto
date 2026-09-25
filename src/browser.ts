@@ -1,165 +1,90 @@
-/**
- * Browser-specific utilities for dithering images
- *
- * Provides DOM helpers and automatic dithering functionality
- */
-
+import { algorithms } from './algorithmRegistry.js';
 import type { DitherOptions, ColorRGB } from './types.js';
-import { ditherImage } from './imageProcessor.js';
-import { PALETTES } from './palette/utils.js';
+import { ditherToImageData } from './imageProcessor.js';
 
-// Re-export for browser convenience
-export { ditherImage, PALETTES };
+export { ditherImage, ditherToImageData } from './imageProcessor.js';
+export { PALETTES } from './palette/utils.js';
+export { generatePalette } from './palette/extract.js';
+export { loadImageData, resizeImageData } from './imageIO.js';
+export { algorithms } from './algorithmRegistry.js';
+export type {
+  GeneratePaletteOptions,
+  ResampleMethod,
+  DitherOptions,
+  ColorRGB,
+  InputImageSource,
+  DitherAlgorithm,
+} from './types.js';
 
-/**
- * Parse algorithm from dataset
- */
-function parseAlgorithm(dataset: DOMStringMap): DitherOptions['algorithm'] | undefined {
-  if (!dataset.algorithm) return undefined;
-  
-  const algorithm = dataset.algorithm as DitherOptions['algorithm'];
-  if (['atkinson', 'floyd-steinberg', 'ordered'].includes(algorithm!)) {
-    return algorithm!;
-  }
-  return undefined;
-}
-
-/**
- * Parse numeric value with validation
- */
-function parsePositiveInteger(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const num = Number.parseInt(value);
-  return !Number.isNaN(num) && num > 0 ? num : undefined;
-}
-
-/**
- * Parse quality value (0-1 range)
- */
-function parseQuality(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const num = Number.parseFloat(value);
-  return !Number.isNaN(num) && num >= 0 && num <= 1 ? num : undefined;
-}
-
-/**
- * Parse palette from JSON string
- */
 function parsePalette(value: string | undefined): ColorRGB[] | undefined {
   if (!value) return undefined;
-  
   try {
-    const palette = JSON.parse(value) as ColorRGB[];
-    return Array.isArray(palette) ? palette : undefined;
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as ColorRGB[]) : undefined;
   } catch {
-    console.warn('Invalid palette JSON in data-palette attribute');
     return undefined;
   }
 }
 
-/**
- * Parse data attributes from an image element into DitherOptions
- */
-export function parseDataAttributes(img: HTMLImageElement): DitherOptions {
-  const { dataset } = img;
-  const options: DitherOptions = {};
-  
-  // Parse each attribute using helper functions
-  const algorithm = parseAlgorithm(dataset);
-  if (algorithm !== undefined) options.algorithm = algorithm;
-  
-  const width = parsePositiveInteger(dataset.width);
-  if (width !== undefined) options.width = width;
-  
-  const height = parsePositiveInteger(dataset.height);
-  if (height !== undefined) options.height = height;
-  
-  const step = parsePositiveInteger(dataset.step);
-  if (step !== undefined) options.step = step;
-  
-  const quality = parseQuality(dataset.quality);
-  if (quality !== undefined) options.quality = quality;
-  
-  const palette = parsePalette(dataset.palette);
-  if (palette !== undefined) options.palette = palette;
-  
-  // Handle palette image reference
-  if (dataset.paletteImg) {
-    options.paletteImg = dataset.paletteImg;
+function parseTones(dataset: DOMStringMap, options: DitherOptions): void {
+  for (const key of ['exposure', 'contrast'] as const) {
+    if (dataset[key]?.trim()) options[key] = Number(dataset[key]);
   }
-  
+}
+
+export function parseDataAttributes(img: HTMLImageElement): DitherOptions {
+  const options: DitherOptions = {};
+  const { dataset } = img;
+  parseTones(dataset, options);
+  switch (dataset.resample) {
+    case 'nearest':
+    case 'area':
+      options.resample = dataset.resample;
+  }
+  const algorithm = dataset.algorithm ?? dataset.alg;
+  if (algorithm && algorithms.get(algorithm)) options.algorithm = algorithm;
+  for (const key of ['width', 'height', 'step', 'paletteColors'] as const) {
+    const value = Number(dataset[key]);
+    if (Number.isSafeInteger(value) && value > 0) options[key] = value;
+  }
+  if (dataset.quality !== undefined && dataset.quality.trim() !== '') {
+    const value = Number(dataset.quality);
+    if (Number.isFinite(value) && value >= 0 && value <= 1) options.quality = value;
+  }
+  const palette = parsePalette(dataset.palette);
+  if (palette) options.palette = palette;
+  if (dataset.paletteImg) options.paletteImg = dataset.paletteImg;
   return options;
 }
 
-/**
- * Apply dithering to a single image element
- */
-export async function ditherImageElement(img: HTMLImageElement, customOptions?: DitherOptions): Promise<void> {
-  const dataOptions = parseDataAttributes(img);
-  const options = { ...dataOptions, ...customOptions };
-  
-  try {
-    console.log(`Dithering image: ${img.src}`);
-    
-    // Process the image
-    const result = await ditherImage(img, options);
-    
-    // Create new canvas to display result
-    const canvas = document.createElement('canvas');
-    
-    if (result instanceof ImageData) {
-      canvas.width = result.width;
-      canvas.height = result.height;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.putImageData(result, 0, 0);
-      }
-    } else {
-      // Handle Uint8Array result (shouldn't happen in browser, but for safety)
-      console.warn('Received Uint8Array in browser environment');
-      return;
-    }
-    
-    // Copy attributes from original image
-    copyImageAttributes(img, canvas);
-    
-    // Replace the image with the canvas
-    img.parentNode?.replaceChild(canvas, img);
-    
-  } catch (error) {
-    console.error('Failed to dither image:', error);
-  }
+/** Waits for decoding, preserves accessibility attributes and reports failures to the caller. */
+export async function ditherImageElement(
+  img: HTMLImageElement,
+  customOptions?: DitherOptions
+): Promise<HTMLCanvasElement> {
+  const result = await ditherToImageData(img, { ...parseDataAttributes(img), ...customOptions });
+  const canvas = document.createElement('canvas');
+  canvas.width = result.width;
+  canvas.height = result.height;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Failed to get 2d context from canvas');
+  context.putImageData(result, 0, 0);
+  canvas.className = img.className;
+  canvas.id = img.id;
+  canvas.title = img.title;
+  canvas.style.cssText = img.style.cssText;
+  canvas.style.imageRendering = 'pixelated';
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', img.alt || 'Dithered image');
+  img.parentNode?.replaceChild(canvas, img);
+  return canvas;
 }
 
-/**
- * Copy relevant attributes from image to canvas
- */
-function copyImageAttributes(img: HTMLImageElement, canvas: HTMLCanvasElement): void {
-  // Copy standard attributes
-  if (img.alt) canvas.setAttribute('alt', img.alt);
-  if (img.title) canvas.title = img.title;
-  if (img.className) canvas.className = img.className;
-  if (img.id) canvas.id = img.id;
-  
-  // Copy style
-  if (img.style.cssText) {
-    canvas.style.cssText = img.style.cssText;
-  }
-}
-
-/**
- * Auto-dither all images in the DOM matching the selector
- * 
- * Looks for images with data-dither attributes and processes them automatically
- */
-export function autoDitherDOM(selector = 'img[data-algorithm]', options?: DitherOptions): void {
+/** Awaitable so callers can react to completion or errors. */
+export async function autoDitherDOM(
+  selector = 'img[data-algorithm]',
+  options?: DitherOptions
+): Promise<HTMLCanvasElement[]> {
   const images = document.querySelectorAll<HTMLImageElement>(selector);
-  console.log(`Found ${images.length} images to dither`);
-  
-  for (const img of images) {
-    // Process each image independently
-    ditherImageElement(img, options).catch(error => {
-      console.error(`Failed to process image ${img.src}:`, error);
-    });
-  }
+  return Promise.all(Array.from(images, (img) => ditherImageElement(img, options)));
 }

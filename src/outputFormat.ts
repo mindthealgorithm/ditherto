@@ -27,7 +27,7 @@ export function convertToUint8Array(imageData: ImageData): Uint8Array {
  * For now, this is a placeholder that validates quality parameter
  */
 export function encodeWithQuality(imageData: ImageData, quality: number): ImageData {
-  if (quality < 0 || quality > 1) {
+  if (!Number.isFinite(quality) || quality < 0 || quality > 1) {
     throw new Error('Quality must be between 0 and 1');
   }
   
@@ -51,7 +51,7 @@ export function formatForEnvironment(
   }
   
   // Auto-detect environment
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' || typeof process === 'undefined' || !process.versions?.node) {
     // Browser environment - return ImageData
     return imageData;
   }
@@ -68,7 +68,7 @@ export function simulatePngEncoding(
 ): Uint8Array {
   const quality = options?.quality ?? 1.0;
   
-  if (quality < 0 || quality > 1) {
+  if (!Number.isFinite(quality) || quality < 0 || quality > 1) {
     throw new Error('Quality must be between 0 and 1');
   }
   

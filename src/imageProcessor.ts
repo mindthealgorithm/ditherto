@@ -1,134 +1,84 @@
-/**
- * Core image processing orchestrator
- * 
- * Coordinates the resize → dither pipeline
- */
-
-import type { InputImageSource, DitherOptions, ColorRGB } from './types.js';
+import { adjustTones, validateTones } from './tone.js';
+import { createImageDataCrossPlatform } from './imageData.js';
+import type { InputImageSource, DitherOptions } from './types.js';
 import { loadImageData, resizeImageData } from './imageIO.js';
 import { algorithms } from './algorithmRegistry.js';
 import { generatePalette } from './palette/extract.js';
+import { validateColorCount } from './palette/quantize.js';
 import { PALETTES } from './palette/utils.js';
-import { formatForEnvironment, encodeWithQuality } from './outputFormat.js';
+import { formatForEnvironment } from './outputFormat.js';
+import { validatePalette, validatePixels, validatePositiveInteger } from './validation.js';
 
-/**
- * Load or convert input to ImageData
- */
-async function loadInputImageData(input: InputImageSource): Promise<ImageData> {
-  if (input && typeof input === 'object' && 'data' in input && 'width' in input && 'height' in input && 'colorSpace' in input) {
-    // Already ImageData
-    return input as ImageData;
-  }
-  return loadImageData(input);
+/** Preferred API: returns RGBA pixels, dimensions and alpha in every runtime. Never mutates input. */
+export async function ditherToImageData(
+  input: InputImageSource,
+  options: DitherOptions = {}
+): Promise<ImageData> {
+  validateOptions(options);
+  const name = options.algorithm ?? 'atkinson';
+  const algorithm = algorithms.get(name);
+  if (!algorithm)
+    throw new Error(`Invalid algorithm: ${name}. Register custom algorithms before use.`);
+  const image = await loadImageData(input);
+  const palette =
+    options.palette ??
+    (options.paletteImg !== undefined
+      ? await generatePalette(
+          options.paletteImg,
+          options.paletteColors === undefined ? {} : { colors: options.paletteColors }
+        )
+      : PALETTES.BW);
+  validatePalette(palette);
+  const resized = await resizeImageData(image, {
+    ...(options.resample !== undefined ? { resample: options.resample } : {}),
+    ...(options.width !== undefined ? { width: options.width } : {}),
+    ...(options.height !== undefined ? { height: options.height } : {}),
+  });
+  const adjusted = adjustTones(resized, options.exposure, options.contrast);
+  // Isolate the source even when a registered third-party algorithm mutates its input.
+  const result = algorithm.apply(
+    createImageDataCrossPlatform(
+      new Uint8ClampedArray(adjusted.data),
+      resized.width,
+      resized.height
+    ),
+    palette,
+    options.step ?? 1
+  );
+  validatePixels(result);
+  return createImageDataCrossPlatform(result.data, result.width, result.height);
 }
 
-/**
- * Apply resize if requested in options
- */
-async function applyResize(imageData: ImageData, options: DitherOptions): Promise<ImageData> {
-  if (!options.width && !options.height) {
-    return imageData;
-  }
-  
-  const resizeOptions: { width?: number; height?: number } = {};
-  if (options.width) resizeOptions.width = options.width;
-  if (options.height) resizeOptions.height = options.height;
-  return await resizeImageData(imageData, resizeOptions);
-}
-
-/**
- * Determine palette from options
- */
-async function determinePalette(options: DitherOptions): Promise<ColorRGB[]> {
-  if (options.palette) {
-    // Explicit palette has highest priority
-    return options.palette;
-  }
-  
-  if (options.paletteImg) {
-    // Extract palette from provided image
-    return generatePalette(options.paletteImg);
-  }
-  
-  // Default to black/white palette
-  return [...PALETTES.BW];
-}
-
-/**
- * Get dithering algorithm by name
- */
-function getAlgorithm(algorithmName: string) {
-  const algorithm = algorithms.get(algorithmName);
-  if (!algorithm) {
-    throw new Error(`Unknown algorithm: ${algorithmName}`);
-  }
-  return algorithm;
-}
-
-/**
- * Main dithering function - processes an image through resize → dither pipeline
- */
+/** Compatibility API: browser ImageData or Node raw RGB bytes (not an encoded file). */
 export async function ditherImage(
   input: InputImageSource,
   options: DitherOptions = {}
 ): Promise<Uint8Array | ImageData> {
-  // Validate options
-  validateOptions(options);
-  
-  // Step 1: Load image data from input source
-  const imageData = await loadInputImageData(input);
-  
-  // Step 2: Determine palette
-  const palette = await determinePalette(options);
-  
-  // Step 3: Get algorithm (default to atkinson)
-  const algorithmName = options.algorithm || 'atkinson';
-  const algorithm = getAlgorithm(algorithmName);
-  
-  // Step 4: Resize BEFORE dithering if requested
-  const resizedData = await applyResize(imageData, options);
-  
-  // Step 5: Apply dithering
-  const step = options.step || 1;
-  const ditheredData = algorithm.apply(resizedData, palette, step);
-  
-  // Step 6: Apply quality encoding if specified
-  const qualityProcessedData = options.quality !== undefined 
-    ? encodeWithQuality(ditheredData, options.quality)
-    : ditheredData;
-  
-  // Step 7: Format output for environment
-  return formatForEnvironment(qualityProcessedData);
+  return formatForEnvironment(await ditherToImageData(input, options));
 }
 
-/**
- * Validate dithering options
- */
-function validateOptions(options: DitherOptions): void {
-  if (options.step !== undefined && options.step <= 0) {
-    throw new Error('Step must be greater than 0');
+export function validateOptions(options: DitherOptions): void {
+  validateTones(options);
+  if (options.paletteColors !== undefined) {
+    validateColorCount(options.paletteColors);
+    if (options.paletteImg === undefined && options.palette === undefined)
+      throw new Error('paletteColors requires paletteImg');
   }
-  
-  if (options.quality !== undefined && (options.quality < 0 || options.quality > 1)) {
+  if (
+    options.resample !== undefined &&
+    options.resample !== 'nearest' &&
+    options.resample !== 'area'
+  ) {
+    throw new Error('Resample must be nearest or area');
+  }
+  if (options.step !== undefined) validatePositiveInteger(options.step, 'Step');
+  if (options.width !== undefined) validatePositiveInteger(options.width, 'Width');
+  if (options.height !== undefined) validatePositiveInteger(options.height, 'Height');
+  if (
+    options.quality !== undefined &&
+    (!Number.isFinite(options.quality) || options.quality < 0 || options.quality > 1)
+  ) {
     throw new Error('Quality must be between 0 and 1');
   }
-  
-  if (options.width !== undefined && options.width <= 0) {
-    throw new Error('Width must be greater than 0');
-  }
-  
-  if (options.height !== undefined && options.height <= 0) {
-    throw new Error('Height must be greater than 0');
-  }
-  
-  if (options.palette !== undefined && options.palette.length === 0) {
-    throw new Error('Palette cannot be empty');
-  }
-  
-  if (options.algorithm !== undefined) {
-    const validAlgorithms = ['atkinson', 'floyd-steinberg', 'ordered'];
-    if (!validAlgorithms.includes(options.algorithm)) {
-      throw new Error(`Invalid algorithm: ${options.algorithm}. Must be one of: ${validAlgorithms.join(', ')}`);
-    }
-  }
+  if (options.palette !== undefined) validatePalette(options.palette);
 }

@@ -1,3 +1,5 @@
+> Historical design proposal. See [README.md](README.md) for the implemented API and [DESIGN_AUDIT.md](DESIGN_AUDIT.md) for the current design decisions and remaining work.
+
 # Specification: **ditherto**
 
 *Pronounced like ‘hitherto'*
