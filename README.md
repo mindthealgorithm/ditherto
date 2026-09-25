@@ -1,6 +1,6 @@
 # ditherto
 
-Resize an image, then dither it into a fixed palette. A TypeScript library for browsers, workers and Node, with a small PNG CLI and an interactive playground.
+Dither images into a fixed palette, with optional resizing and tone adjustments. A TypeScript library for browsers, workers and Node, with a small PNG CLI and interactive examples.
 
 Three algorithms: **Atkinson**, **Floyd–Steinberg**, and deterministic **4×4 Bayer ordered dithering**. Bring your own palette or use black/white, Game Boy, CGA, RGB, or 16-level grayscale.
 
@@ -15,6 +15,34 @@ Open http://127.0.0.1:4173. Upload or drop an image, try the included portrait, 
 
 ## Browser
 
+For images on a page, let your CSS layout determine the display size. **No `width` or `height` option is required.** The responsive helper follows each image wrapper's content width and rerenders from the original whenever that width changes.
+
+```html
+<div class="photo">
+  <img class="dither" src="photo.jpg" alt="A mountain landscape">
+</div>
+```
+
+```ts
+import { observeDitherDOM, PALETTES } from 'ditherto/dom';
+
+const images = observeDitherDOM('img.dither', {
+  algorithm: 'atkinson',
+  palette: PALETTES.GAMEBOY,
+  resample: 'area', // Average photo detail when fitting the display size
+});
+
+await images.ready;
+// On unmount, stop observing and restore the original image elements:
+// images.destroy();
+```
+
+Give each image its own wrapper sized by your layout, such as a grid cell. The canvas fills that wrapper and retains the source aspect ratio. This helper follows wrapper width; it does not reproduce arbitrary image-specific fixed-height or cropped `object-fit` layouts. See [responsive images and per-image settings](#responsive-images-and-per-image-settings) for updates, cleanup and shared-worker rendering.
+
+### Process pixels at the original size
+
+The lower-level pixel API preserves the source image's native dimensions unless you explicitly supply `width` or `height`. It does not observe the DOM or infer display dimensions.
+
 ```ts
 import { ditherToImageData, PALETTES } from 'ditherto/browser';
 
@@ -22,9 +50,7 @@ const originalImage = document.querySelector('img')!;
 const pixels = await ditherToImageData(originalImage, {
   algorithm: 'atkinson',
   palette: PALETTES.GAMEBOY,
-  width: 320,
-  resample: 'area', // Average fine photographic detail before dithering
-});
+}); // Same pixel dimensions as the original image
 
 const canvas = document.querySelector('canvas')!;
 canvas.width = pixels.width;
@@ -32,7 +58,7 @@ canvas.height = pixels.height;
 canvas.getContext('2d')!.putImageData(pixels, 0, 0);
 ```
 
-Use `ditherto/browser` with browser bundlers: its build contains no Node or native-canvas imports. For direct module imports, serve the built `dist/browser.js` alongside your application. The same entry point accepts RGBA pixels or Blobs in module workers.
+Use `ditherto/browser` with browser bundlers: its build contains no Node or native-canvas imports. For direct module imports, serve the built `dist/browser.js` alongside your application (or `dist/dom.js` for the responsive helper). The browser entry also accepts RGBA pixels or Blobs in module workers.
 
 `ditherToImageData` waits for an image element to load. URL inputs require same-origin access or permission through CORS. For interactive controls, keep the original source and call the function again with new options; do not feed the previous dithered result back in. Large jobs are synchronous during the pixel-processing portion, so run them in a worker, as the playground does.
 
@@ -46,11 +72,11 @@ import { encodePng } from 'ditherto/node';
 const pixels = await ditherToImageData('./photo.jpg', {
   algorithm: 'floyd-steinberg',
   palette: PALETTES.GAMEBOY,
-  width: 320,
-  resample: 'area', // Average fine photographic detail before dithering
 });
 await writeFile('./photo.dithered.png', encodePng(pixels));
 ```
+
+Omitting `width` and `height` preserves the source dimensions. Add either option only when you want to resize.
 
 `@napi-rs/canvas` handles Node decoding and PNG encoding. PNG output retains dimensions and transparency. CommonJS `require('ditherto')` and `require('ditherto/node')` are also supported.
 
@@ -74,14 +100,16 @@ Decoded format support depends on the host browser or Node canvas decoder. Anima
 | `palette` | `PALETTES.BW` | Readonly RGB triples, integer channels 0–255 |
 | `paletteImg` | — | Palette swatch or reference photo; explicit `palette` takes precedence |
 | `paletteColors` | — | Quantize `paletteImg` to at most 1–256 representative colors; omitted means exact extraction |
-| `width`, `height` | Original size | Positive integer bounds; preserve aspect ratio and fit inside both when supplied |
+| `width`, `height` | Omitted: no resizing | Optional positive integer bounds; preserve aspect ratio and fit inside both when supplied |
 | `resample` | `'nearest'` | `'area'` averages source-pixel coverage when shrinking photos; both use nearest-neighbor enlargement |
 | `step` | `1` | Positive integer pixel-block size; dimensions do not change |
 | `exposure` | `0` | −4 to +4 photographic stops in linear sRGB, before dithering |
 | `contrast` | `1` | 0–2 slope around the encoded sRGB midpoint; 1 is neutral |
 | `quality` | — | Deprecated compatibility hint; validated but does **not** change pixels or PNG output |
 
-Width/height can upscale as well as downscale. Nearest-neighbor resizing samples pixel centers. Area resizing integrates each destination pixel’s exact source footprint, including fractional ratios, in encoded sRGB (not linear light). It weights colors by alpha before averaging, so invisible RGB cannot create colored fringes. Both filters are deterministic given the same decoded RGBA pixels; host decoders and color management may differ. The playground defaults to area; the library keeps nearest for compatibility. Extremely thin images retain a minimum dimension of one pixel. Decoded inputs and processed outputs are limited to 8192 pixels per side and 16,777,216 pixels total; these are allocation guards, not a decoder memory guarantee.
+**Resizing is optional.** With neither `width` nor `height`, the pipeline skips resampling and dithers at the original pixel dimensions. Setting `resample` alone does not change dimensions; it chooses the filter to use if resizing is requested. This is separate from `observeDitherDOM`, which automatically supplies dimensions from the page layout.
+
+Explicit width/height options can upscale as well as downscale. Nearest-neighbor resizing samples pixel centers. Area resizing integrates each destination pixel’s exact source footprint, including fractional ratios, in encoded sRGB (not linear light). It weights colors by alpha before averaging, so invisible RGB cannot create colored fringes. Both filters are deterministic given the same decoded RGBA pixels; host decoders and color management may differ. The playground defaults to area; the library keeps nearest for compatibility. Extremely thin images retain a minimum dimension of one pixel. Decoded inputs and processed outputs are limited to 8192 pixels per side and 16,777,216 pixels total; these are allocation guards, not a decoder memory guarantee.
 
 RGB matching uses squared Euclidean distance in encoded sRGB. Alpha is retained per pixel; fully transparent pixels do not spread error. Blocks sample the top-left visible pixel (the origin when visible) and fill RGB across the block while retaining each pixel's alpha.
 
@@ -163,10 +191,10 @@ algorithms.register({
 
 The pipeline isolates input pixels before invoking plugins. `algorithms.list()` lists registered names. Palette order breaks nearest-color ties deterministically.
 
-### DOM helpers
+### One-shot DOM helpers
 
 ```html
-<img class="dither" data-algorithm="ordered" data-width="160" data-resample="area" src="photo.png" alt="A mountain landscape">
+<img class="dither" data-algorithm="ordered" src="photo.png" alt="A mountain landscape">
 ```
 
 ```ts
@@ -174,11 +202,11 @@ import { autoDitherDOM } from 'ditherto/browser';
 const canvases = await autoDitherDOM('img.dither');
 ```
 
-The helper waits for loading, replaces matching images with canvases, retains their accessible labels, and rejects on failure. `ditherImageElement(img, options)` processes one element. Palette and tone attributes are `data-palette-img`, `data-palette-colors`, `data-exposure`, and `data-contrast`. These are one-shot helpers. For resize observation, independent updates and cleanup, use the optional DOM entry below. Explicit options override data attributes in the one-shot helpers.
+The helper waits for loading, replaces matching images with canvases, retains their accessible labels, and rejects on failure. `ditherImageElement(img, options)` processes one element. Palette and tone attributes are `data-palette-img`, `data-palette-colors`, `data-exposure`, and `data-contrast`. These are one-shot helpers: they keep the source pixel dimensions unless resize options or attributes are supplied, and they do not track later layout changes. For automatic display sizing, resize observation, independent updates and cleanup, use `observeDitherDOM` below. Explicit options override data attributes in the one-shot helpers.
 
 ## Responsive images and per-image settings
 
-Import `ditherto/dom` when you want the library to manage image elements. It reexports the browser API and adds `observeDitherDOM`; importing it is safe during server rendering, but calling the helper requires a browser with `ResizeObserver`. The ordinary browser entry does not include this integration.
+Import `ditherto/dom` when you want the library to manage image elements. **Omit `width` and `height` to render at the layout's current display width automatically.** It reexports the browser API and adds `observeDitherDOM`; importing it is safe during server rendering, but calling the helper requires a browser with `ResizeObserver`. The ordinary browser entry does not include this integration.
 
 ```html
 <div class="photo"><img class="dither" src="portrait.jpg" alt="Portrait" data-exposure="0.4"></div>
