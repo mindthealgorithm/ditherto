@@ -67,7 +67,8 @@ test('responsive resize changes actual bitmap dimensions and mobile layout fits'
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
     .toBe(true);
   for (const select of await page.locator('select').all()) {
-    expect((await select.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    // Firefox can report 43.99997 for a 44 CSS-pixel control.
+    expect((await select.boundingBox())!.height).toBeGreaterThanOrEqual(44 - 0.001);
   }
   await page.screenshot({ path: testInfo.outputPath('playground-mobile.png'), fullPage: true });
 });

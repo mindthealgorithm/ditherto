@@ -137,12 +137,15 @@ test('waiting on an unloaded image leaves the shared queue available', async ({p
 });
 
 test('shared-worker gallery tunes images independently, rerenders on resize, and restores/rebinds', async ({page}, testInfo) => {
+  // Keep polling in the browser: serializing half a million numbers per attempt
+  // can exhaust the assertion timeout on a shared CI runner.
+  const snapshot = () => page.locator('canvas').first().evaluate((c: HTMLCanvasElement) => c.toDataURL());
   await page.goto('/examples/responsive-demo.html');
   await expect(page.locator('.gallery canvas')).toHaveCount(3);
-  const before = await pixels(page);
+  const before = await snapshot();
   const second = await page.locator('canvas').nth(1).evaluate((c: HTMLCanvasElement) => c.toDataURL());
   await page.locator('.exposure').first().fill('1.1');
-  await expect.poll(() => pixels(page)).not.toEqual(before);
+  await expect.poll(snapshot).not.toBe(before);
   expect(await page.locator('canvas').nth(1).evaluate((c: HTMLCanvasElement) => c.toDataURL())).toBe(second);
   const originalWidth = await page.locator('canvas').first().evaluate((c: HTMLCanvasElement) => c.width);
   await page.locator('#galleryWidth').fill('45');
@@ -151,7 +154,7 @@ test('shared-worker gallery tunes images independently, rerenders on resize, and
   await expect(page.locator('canvas').first()).toHaveJSProperty('width', originalWidth);
   await page.locator('#texture').selectOption('ordered');
   await page.locator('#colors').selectOption('ink');
-  await expect.poll(async () => (await pixels(page)).every((value,index) => index%4 === 3 ? value === 255 : value === 0 || value === 255)).toBe(true);
+  await expect.poll(() => page.locator('canvas').first().evaluate((c: HTMLCanvasElement) => c.getContext('2d')!.getImageData(0,0,c.width,c.height).data.every((value,index) => index%4 === 3 ? value === 255 : value === 0 || value === 255))).toBe(true);
   await page.screenshot({path:testInfo.outputPath('responsive-gallery.png'),fullPage:true});
   await page.locator('#toggle').click();
   await expect(page.locator('.gallery img')).toHaveCount(3);
