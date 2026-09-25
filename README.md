@@ -14,7 +14,19 @@ Three algorithms: **Atkinson**, **Floyd–Steinberg**, and deterministic **4×4 
 
 Open either playground above—no account or installation. Images stay on your device. The image playground exports PNGs, JavaScript and a matching CLI command. The Arcana site includes five tarot studies, Amber/Orchid/Moss themes, and live rendering from the originals as the layout changes. The responsive gallery demonstrates independent image settings, automatic rerendering, and restoring originals.
 
-**Preview release:** the npm package is not published yet. Use the source checkout now:
+Install the library in your project:
+
+```sh
+npm install ditherto
+```
+
+Or run the CLI directly:
+
+```sh
+npx ditherto photo.jpg -o photo.png --palette MONO_BLUE
+```
+
+Node 20 or newer is required for the CLI and build tools. To develop locally or run the playgrounds from source:
 
 ```sh
 git clone https://github.com/jcinis/ditherto.git
@@ -25,9 +37,9 @@ node dist/cli.js photo.jpg -o photo.png --palette MONO_BLUE
 npm run demo
 ```
 
-Node 20 or newer is required for the CLI and build tools. The last command starts a local server at `http://127.0.0.1:4173`; the homepage is at `/index.html`. For a local package you can install into another project, run `npm pack`, then `npm install /path/to/ditherto-0.1.0.tgz` in that project.
+The last command starts a local server at `http://127.0.0.1:4173`; the homepage is at `/index.html`. For a local package you can install into another project, run `npm pack`, then `npm install /path/to/ditherto-0.1.0.tgz` in that project.
 
-After npm publication, the same package will support `npm install ditherto` and `npx ditherto`. Until then, use `node dist/cli.js` in place of `npx ditherto` in the examples below. See [publishing status and the release procedure](https://github.com/jcinis/ditherto/blob/main/docs/RELEASING.md).
+See the [npm package](https://www.npmjs.com/package/ditherto) and [release procedure](https://github.com/jcinis/ditherto/blob/main/docs/RELEASING.md).
 
 ## CLI for people and agents
 
@@ -63,14 +75,14 @@ for exposure in -0.5 0 0.5; do
 done
 ```
 
-For fast batches, install once (`npm install --global ditherto` after publication) and call `ditherto`, or use `node dist/cli.js` from the checkout. To avoid process startup for every file in a large batch, use the Node API in one process. There is no hidden auto-tuning: the caller chooses the look, and settings are explicit and reproducible for the same decoded pixels.
+For fast batches, install once (`npm install --global ditherto`) and call `ditherto`, or use `node dist/cli.js` from the checkout. To avoid process startup for every file in a large batch, use the Node API in one process. There is no hidden auto-tuning: the caller chooses the look, and settings are explicit and reproducible for the same decoded pixels.
 
 ```sh
 # Process a directory, preserving filenames and leaving originals intact.
 for file in photos/*.jpg; do
   [ -f "$file" ] || continue
   name="${file##*/}"
-  node dist/cli.js "$file" -o "out/${name%.*}.png" \
+  ditherto "$file" -o "out/${name%.*}.png" \
     --palette MONO_RED --width 320 --resample area --json
 done
 ```

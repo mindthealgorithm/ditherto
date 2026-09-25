@@ -1,6 +1,6 @@
 # Packaging and publication
 
-Status checked September 25, 2026: `npm view ditherto` returned 404, and this machine was not authenticated to npm. That makes the name a candidate, not a reservation or guarantee that publication will be accepted. The package is prepared as `ditherto@0.1.0`; no npm publication has been performed.
+Published September 25, 2026: [`ditherto@0.1.0`](https://www.npmjs.com/package/ditherto) is available on npm. The first release was published through an authenticated local session. Subsequent releases can use the GitHub workflow after the package owner configures npm trusted publishing as described below.
 
 ## What is ready
 
@@ -27,15 +27,15 @@ npx ditherto input.jpg -o output.png --palette MONO_BLUE --json
 
 Inspect the archive before publishing: `npm pack --dry-run`. It should contain only `dist/`, `package.json`, `README.md` and `LICENSE`, not photos, tests, site assets or development scripts. README images use absolute GitHub URLs so the package stays small.
 
-## First npm publication
+## Manual npm publication
 
 The account owner needs an npm account with the package name available and an authenticated publishing session. [npm's first-publication guide](https://docs.npmjs.com/creating-and-publishing-unscoped-public-packages/) covers account setup and two-factor authentication.
 
 1. Review the package and choose the release version. Update both package files with `npm version <version> --no-git-tag-version` if changing it, then commit the release changes.
 2. Authenticate interactively with `npm login`; keep credentials and one-time codes out of chat and repository files.
-3. Run the checks above and publish deliberately with `npm publish --access public`. This is the actual public-release step; it has not been run by this preparation task.
+3. Run the checks above and publish deliberately with `npm publish --access public`. This is the actual public-release step. Each version can only be published once.
 4. Verify `npm view ditherto version` and try `npx --yes ditherto@0.1.0 --help` from a separate directory (use the version actually released).
-5. Remove the preview/unpublished notices from the README, homepage and playground CLI help. Create a matching GitHub release with the tested tarball if desired.
+5. Update the publication status and release notes, then attach the published tarball to the matching GitHub release.
 
 ## Subsequent releases via GitHub
 
@@ -53,7 +53,7 @@ Configure an npm trusted publisher for the package: GitHub user `jcinis`, reposi
 
 ## Preparation checks
 
-The preparation run passed 259 unit tests, package verification, and 84 tests across Chromium, Firefox and WebKit. A separate project installed the actual tarball and exercised its CLI, Node encoder and imports. The built site was also served under `/ditherto/` to check both workers, sample photos, navigation and resize rendering.
+The preparation run passed 259 unit tests, package verification, and 96 tests across Chromium, Firefox and WebKit. A separate project installed the actual tarball and exercised its CLI, Node encoder and imports. The built site was also served under `/ditherto/` to check both workers, sample photos, navigation and resize rendering.
 
 One earlier local WebKit run read a blank source image in the existing DOM refresh test. It did not recur in 20 targeted runs or the subsequent full suite. Its cause is not established; no speculative decoding change or automatic test retry was added. Keep this observation in view during Safari testing before the public npm launch.
 
