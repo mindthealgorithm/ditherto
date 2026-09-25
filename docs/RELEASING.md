@@ -1,6 +1,6 @@
 # Packaging and publication
 
-Published September 25, 2026: [`ditherto@0.1.0`](https://www.npmjs.com/package/ditherto) is available on npm. The first release was published through an authenticated local session. Subsequent releases can use the GitHub workflow after the package owner configures npm trusted publishing as described below.
+Published September 25, 2026: [`ditherto@0.1.0`](https://www.npmjs.com/package/ditherto) is available on npm. The first release was published through an authenticated local session. npm trusted publishing is configured for `jcinis/ditherto` and `release.yml`; future stable GitHub releases trigger the automated workflow described below.
 
 ## What is ready
 
@@ -39,9 +39,9 @@ The account owner needs an npm account with the package name available and an au
 
 ## Subsequent releases via GitHub
 
-Use npm trusted publishing with GitHub Actions: GitHub user `jcinis`, repository `ditherto`, workflow `release.yml`, and no environment restriction. Permit direct `npm publish`. The workflow uses Node 24, npm 11.19.1 and `id-token: write`; no persistent npm token is required. [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/).
+Configured September 25, 2026 for GitHub user `jcinis`, repository `ditherto`, workflow `release.yml`, with no environment restriction. Direct `npm publish` is enabled. The workflow uses Node 24, npm 11.19.1 and `id-token: write`; no persistent npm token is required. [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/).
 
-After the package owner completes the one-time trusted-publisher setup:
+For each subsequent release:
 
 1. Choose the next stable version and run `npm version <version> --no-git-tag-version` to update both package files. Commit and push the changes.
 2. Create and publish a GitHub release with the matching tag, such as `v0.1.1`, at that commit. A draft release, prerelease, tag push or ordinary branch push does not publish to npm.
