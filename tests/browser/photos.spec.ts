@@ -6,7 +6,7 @@ import { orientationError, pixelError } from '../helpers/photo-checks.js';
 const helpers = { orientation: orientationError.toString(), pixels: pixelError.toString() };
 
 test('JPEG orientation, tagged sRGB and lossless WebP through URL and Blob decoders', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   const results = await page.evaluate(async (helpers) => {
     const { loadImageData } = await import('/dist/browser.js');
     const orientationError = (0, eval)(`(${helpers.orientation})`);
@@ -37,7 +37,7 @@ test('JPEG orientation, tagged sRGB and lossless WebP through URL and Blob decod
 
 for (const name of ['astronaut', 'coffee', 'chelsea']) {
   test(`${name}: identical photographic pixels produce identical area+dither output in Node and browser`, async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/examples/classic-browser-demo.html');
     // Decode in the browser, then use those exact pixels in Node: native JPEG/color
     // decoders are not promised byte-identical, but our transforms must be.
     const input = await page.evaluate(async (name) => {
@@ -62,7 +62,7 @@ for (const name of ['astronaut', 'coffee', 'chelsea']) {
 }
 
 test('photo controls, area/nearest comparison and rerendering from the original', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await page.locator('#photoSample').selectOption('coffee');
   await expect(page.locator('#sourceName')).toContainText('coffee');
   await expect(page.locator('#download')).toBeEnabled();
@@ -93,7 +93,7 @@ test('photo controls, area/nearest comparison and rerendering from the original'
 });
 
 test('controls during a slow photo load wait for the new source; later source selection wins', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await expect(page.locator('#download')).toBeEnabled();
   let release;
   const gate = new Promise<void>(resolve => { release = resolve; });

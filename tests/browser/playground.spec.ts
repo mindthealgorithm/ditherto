@@ -15,7 +15,7 @@ async function setWidth(page, width) {
 test('real worker rendering, changes and repeat resizing from the original', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await ready(page);
   await setWidth(page, 96);
   const first = await page
@@ -44,7 +44,7 @@ test('real worker rendering, changes and repeat resizing from the original', asy
 test('responsive resize changes actual bitmap dimensions and mobile layout fits', async ({
   page,
 }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await ready(page);
   const before = await page
     .locator('#resultCanvas')
@@ -76,7 +76,7 @@ test('responsive resize changes actual bitmap dimensions and mobile layout fits'
 test('file upload and Node/browser pixel parity for all algorithms after resizing', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await ready(page);
   await page.locator('#imageInput').setInputFiles('tests/fixtures/input/gradient-4x4.png');
   await expect(page.locator('#sourceName')).toHaveText('gradient-4x4.png');
@@ -108,7 +108,7 @@ test('file upload and Node/browser pixel parity for all algorithms after resizin
 });
 
 test('latest recipe wins rapid changes; invalid palette recovers', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await ready(page);
   await page.locator('#widthNumber').fill('1024');
   await page.locator('#widthNumber').fill('32');
@@ -125,7 +125,7 @@ test('latest recipe wins rapid changes; invalid palette recovers', async ({ page
 });
 
 test('download is a valid PNG and the recipe matches chosen settings', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await ready(page);
   await setWidth(page, 120);
   await page.locator('.preview-area summary').filter({hasText: 'Use this recipe in your code'}).click();
@@ -141,7 +141,7 @@ test('download is a valid PNG and the recipe matches chosen settings', async ({ 
 });
 
 test('DOM helper waits for decoding and replaces images in a real browser', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await ready(page);
   const result = await page.evaluate(async () => {
     const { autoDitherDOM } = await import('/dist/browser.js');
@@ -163,7 +163,7 @@ test('DOM helper waits for decoding and replaces images in a real browser', asyn
 });
 
 test('desktop visual review', async ({ page }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await ready(page);
   await page.screenshot({ path: testInfo.outputPath('playground-desktop.png'), fullPage: true });
 });

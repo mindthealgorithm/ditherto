@@ -140,7 +140,7 @@ test('shared-worker gallery tunes images independently, rerenders on resize, and
   // Keep polling in the browser: serializing half a million numbers per attempt
   // can exhaust the assertion timeout on a shared CI runner.
   const snapshot = () => page.locator('canvas').first().evaluate((c: HTMLCanvasElement) => c.toDataURL());
-  await page.goto('/examples/responsive-demo.html');
+  await page.goto('/examples/classic-responsive-demo.html');
   await expect(page.locator('.gallery canvas')).toHaveCount(3);
   const before = await snapshot();
   const second = await page.locator('canvas').nth(1).evaluate((c: HTMLCanvasElement) => c.toDataURL());

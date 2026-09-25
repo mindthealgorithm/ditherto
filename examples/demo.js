@@ -260,6 +260,7 @@ const sampleCredits = {
 };
 $('photoSample').addEventListener('change', async () => {
   const name = $('photoSample').value;
+  const selected = $('photoSample').selectedOptions[0];
   if (name === 'landscape') { sample(); return; }
   const id = ++loadId;
   loading = true;
@@ -271,12 +272,13 @@ $('photoSample').addEventListener('change', async () => {
   $('copyCli').disabled = true;
   $('status').textContent = 'Opening photograph…';
   try {
-    const response = await fetch(`../tests/fixtures/photos/${name}.png`);
+    const response = await fetch(selected?.dataset.src ?? new URL(`../tests/fixtures/photos/${name}.png`, import.meta.url));
     if (!response.ok) throw new Error('Sample photograph could not be loaded');
     const image = await loadImageData(await response.blob());
     if (id !== loadId) return;
-    $('photoCredit').textContent = sampleCredits[name];
-    setSource(image, `${name} / ${sampleCredits[name]}`);
+    const credit = selected?.dataset.credit ?? sampleCredits[name];
+    $('photoCredit').textContent = credit;
+    setSource(image, `${selected?.dataset.name ?? name} / ${credit}`);
   } catch (error) { if (id === loadId) { loading = false; showError(error.message); } }
 });
 $('imageInput').addEventListener('change', (event) => {
@@ -361,4 +363,7 @@ $('copyCli').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(cliRecipe); $('copyCli').textContent = 'Copied'; }
   catch { $('copyCli').textContent = 'Select the command above to copy'; }
 });
-sample();
+if (document.body.dataset.initialSample) {
+  $('photoSample').value = document.body.dataset.initialSample;
+  $('photoSample').dispatchEvent(new Event('change'));
+} else sample();

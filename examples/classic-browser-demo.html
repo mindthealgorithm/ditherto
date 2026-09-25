@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ditherto — A little less color. A lot more character.</title>
+  <link rel="stylesheet" href="./demo.css">
+</head>
+<body>
+  <header class="masthead"><a class="brand" href="../classic.html"><span class="mark" aria-hidden="true"></span>ditherto<span class="version">PLAYGROUND</span></a><nav class="site-nav" aria-label="Main navigation"><a href="../classic.html">Home</a><a href="./classic-browser-demo.html">Image playground</a><a href="./classic-responsive-demo.html">Responsive gallery</a><a href="https://github.com/jcinis/ditherto#readme">Docs ↗</a></nav></header>
+  <main>
+    <div class="intro"><div><p class="eyebrow">FEWER COLORS. MORE POSSIBILITIES.</p><h1>A little less color.<br><em>A lot more character.</em></h1></div><p class="intro-note">Turn an image into a palette of possibilities.<br>Pick a texture. Find your colors. Make it yours.</p></div>
+    <section class="workspace" aria-label="Dithering playground">
+      <aside class="controls">
+        <div class="section-heading"><h2>Your recipe</h2><span>01—04</span></div>
+        <label class="upload" id="dropzone"><span>01 / SOURCE IMAGE</span><strong>Choose an image <b>↗</b></strong><small>or drop it here · processed on your device</small><input id="imageInput" type="file" accept="image/*"></label>
+        <label class="sample-label" for="photoSample">Or try a sample</label><select id="photoSample"><option value="landscape">Illustrated landscape</option><option value="coffee">Coffee / wood grain</option><option value="chelsea">Chelsea / fine fur</option><option value="astronaut">Portrait / NASA</option></select><button class="text-button" id="sample" type="button">Reset to the landscape</button><small id="photoCredit" class="photo-credit"></small>
+        <div class="field"><label for="algorithm">02 / TEXTURE</label><select id="algorithm"><option value="atkinson">Atkinson</option><option value="floyd-steinberg">Floyd–Steinberg</option><option value="ordered">Ordered / Bayer 4×4</option></select><p id="algorithmHelp">Airy texture with a little extra contrast.</p></div>
+        <div class="field"><label for="palette">03 / COLOR PALETTE</label><select id="palette"><option value="STUDIO">Dusk / 4 colors</option><option value="BW">Ink / black & white</option><option value="MONO_RED">Monochrome / red</option><option value="MONO_GREEN">Monochrome / green</option><option value="MONO_BLUE">Monochrome / blue</option><option value="MONO_YELLOW">Monochrome / yellow</option><option value="GAMEBOY">Game Boy / 4 colors</option><option value="CGA_4">CGA / 4 colors</option><option value="RGB">RGB / 8 colors</option><option value="GRAYSCALE_16">Grayscale / 16 colors</option><option value="PHOTO">From this image</option><option value="REFERENCE">From another photo</option><option value="CUSTOM">Custom hex colors</option></select><div id="photoPaletteControls" class="photo-palette-controls" hidden><label for="paletteColors">Number of colors <input id="paletteColors" type="number" min="1" max="256" value="8"></label><div id="paletteFileControls" hidden><label for="paletteImageInput">Reference photo</label><input id="paletteImageInput" type="file" accept="image/*"><span id="paletteSourceName">Choose a photo to borrow its colors.</span></div><p id="paletteInfo">Choose up to 256 representative colors.</p></div><div class="swatches" id="swatches" aria-label="Palette colors"></div><label class="custom-label" id="customLabel" hidden>Hex colors<input id="customPalette" value="#25213b, #8b5066, #dda77b, #f4eccf" spellcheck="false"></label></div>
+        <div class="field resolution-field"><label for="width">04 / RESOLUTION <span id="dimensionHint"></span></label><div class="range-row"><input type="range" id="width" min="16" max="1024" step="1" value="320"><input type="number" id="widthNumber" aria-label="Output width in pixels" min="1" max="2048" value="320"><span>px</span></div><label class="check"><input type="checkbox" id="responsive" checked> Match preview width</label><p>Resizing recalculates the image from the original. The aspect ratio stays intact.</p><label class="block-label" for="resample">Resize method</label><select id="resample"><option value="area" selected>Photo / area average</option><option value="nearest">Pixel art / nearest</option></select><p id="resampleHelp">Average fine detail before dithering. Enlargement stays crisp.</p><label class="block-label" for="step">Pixel block <output id="stepValue">1 × 1</output></label><input type="range" id="step" min="1" max="8" value="1"></div>
+        <details class="tone-controls"><summary>Exposure &amp; contrast <span>+</span></summary><label for="exposure">Exposure <output id="exposureValue">0 EV</output></label><input id="exposure" type="range" min="-4" max="4" step="0.1" value="0"><label for="contrast">Contrast <output id="contrastValue">0%</output></label><input id="contrast" type="range" min="-100" max="100" step="1" value="0"><p>Adjust the original tones before dithering.</p><button type="button" class="text-button" id="resetTones">Reset adjustments</button></details>
+      </aside>
+      <div class="preview-area">
+        <div class="preview-toolbar"><span class="live-dot"></span><span>LIVE PREVIEW</span><span id="sourceName">Sample landscape</span></div>
+        <div class="previews">
+          <figure><figcaption><span>Original</span><span id="originalInfo"></span></figcaption><div class="image-well"><canvas id="originalCanvas" aria-label="Original image preview" role="img"></canvas></div></figure>
+          <figure><figcaption><span>Dithered</span><span id="resultInfo"></span></figcaption><div class="image-well" id="resultWell"><canvas id="resultCanvas" aria-label="Dithered image preview" role="img"></canvas></div></figure>
+        </div>
+        <div class="result-bar"><p id="status" role="status" aria-live="polite">Loading the playground…</p><button id="download" disabled type="button">Download PNG <span>↓</span></button></div>
+        <p id="error" class="error" role="alert" hidden></p>
+        <div class="note"><span class="note-star">✳</span><p><strong>Small pixels. Big personality.</strong><br>Try a lower resolution for a coarser texture, or change the pixel block size for a chunkier finish.</p></div>
+        <details><summary>Use this recipe in your code <span>+</span></summary><pre><code id="recipe"></code></pre><button class="text-button" id="copy" type="button" disabled>Copy JavaScript</button></details>
+      <details><summary>Use this recipe from the CLI <span>+</span></summary><pre><code id="cliRecipe"></code></pre><button class="text-button" id="copyCli" type="button" disabled>Copy CLI command</button><p class="recipe-help">Replace <code>input.jpg</code> with your file. Until the npm release, use <code>node dist/cli.js</code> from a built checkout in place of <code>npx ditherto</code>.</p></details>
+      </div>
+    </section>
+    <footer><a href="./classic-responsive-demo.html">Explore the responsive gallery ↗</a><span>Powered by ditherto. Images stay on your device.</span></footer>
+  </main>
+  <script type="module" src="./demo.js"></script>
+</body>
+</html>

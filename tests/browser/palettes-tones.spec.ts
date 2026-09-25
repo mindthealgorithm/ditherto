@@ -7,7 +7,7 @@ const ready = async (page) => {
   await expect(page.locator('#error')).toBeHidden();
 };
 async function setup(page) {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await page.locator('#photoSample').selectOption('coffee');
   await expect(page.locator('#sourceName')).toContainText('coffee');
   await ready(page);

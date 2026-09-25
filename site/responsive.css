@@ -1,0 +1,18 @@
+.gallery-controls{background:var(--panel);border-color:var(--line);gap:24px}
+.gallery-controls label{font-size:10px}
+.gallery-controls button{background:var(--accent);color:var(--paper);border-color:var(--accent);font-weight:bold;font-size:11px}
+.gallery-controls button:hover{background:var(--ink)}
+.gallery{grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:24px}
+.photo{background:var(--paper);outline:1px solid var(--line);outline-offset:5px}
+.caption{border-color:var(--line);font-size:10px;padding-top:20px}
+.dimensions,.gallery-status{color:var(--muted)}
+.exposure-label{font-size:11px}
+.exposure-label output{color:var(--accent)}
+.gallery-note{max-width:780px;margin:44px 0}
+.gallery-note p{font-size:12px;color:var(--muted);line-height:1.9}
+main>details{background:var(--panel);border-color:var(--line);padding:24px}
+main>details summary{font-size:14px;color:var(--accent)}
+main>details p{font-size:11px;color:var(--muted)}
+main>details a{text-decoration:underline;text-underline-offset:3px}
+#galleryRecipe{font-size:11px}
+@media(max-width:600px){.gallery-controls{padding:18px;gap:18px}.gallery{gap:24px}.gallery-note{margin:30px 0}main>details{padding:18px}}

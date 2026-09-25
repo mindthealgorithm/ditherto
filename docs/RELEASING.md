@@ -49,10 +49,12 @@ Configure an npm trusted publisher for the package: GitHub user `jcinis`, reposi
 
 ## GitHub Pages
 
-`npm run build:site` creates `_site/` using relative links so it works at `/ditherto/`. The Pages workflow deploys `main` through GitHub Actions. The homepage and both playgrounds share the built browser bundles and a small, credited sample-photo corpus. The homepage uses the library's responsive binding with a shared worker to rerender original photographs at their display widths; it has no application framework. Run `npm run assets:site` when intentionally refreshing the lossless PNG pictures used for static documentation and social previews.
+`npm run build:site` creates `_site/` using relative links so it works at `/ditherto/`. The Pages workflow deploys `main` through GitHub Actions. The Arcana homepage and both playgrounds share the built browser bundles and a small, credited sample-photo corpus. The homepage uses the library's responsive binding with a shared worker to rerender original photographs at their display widths; it has no application framework. Run `npm run assets:site` when intentionally refreshing the lossless PNG pictures used for static documentation and social previews.
 
 ## Preparation checks
 
 The preparation run passed 259 unit tests, package verification, and 84 tests across Chromium, Firefox and WebKit. A separate project installed the actual tarball and exercised its CLI, Node encoder and imports. The built site was also served under `/ditherto/` to check both workers, sample photos, navigation and resize rendering.
 
 One earlier local WebKit run read a blank source image in the existing DOM refresh test. It did not recur in 20 targeted runs or the subsequent full suite. Its cause is not established; no speculative decoding change or automatic test retry was added. Keep this observation in view during Safari testing before the public npm launch.
+
+The approved Arcana design is served at `/`, `/playground.html`, and `/responsive.html`. Previous example URLs and local experiment bookmarks redirect to the new pages. The earlier design remains available at `/classic.html` and the `classic-` example pages. Tarot artwork is kept in the website only, outside the npm package.

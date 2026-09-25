@@ -5,13 +5,13 @@ import { createHash } from 'node:crypto';
 
 const dusk = [[37,33,59],[139,80,102],[221,167,123],[244,236,207]];
 
-test('homepage rerenders original photographs and preserves displayed palette colors on resize', async ({browser,baseURL}) => {
+test('classic homepage rerenders original photographs and preserves displayed palette colors on resize', async ({browser,baseURL}) => {
   test.setTimeout(60_000);
   for (const deviceScaleFactor of [1,1.25,2]) {
     const context = await browser.newContext({deviceScaleFactor, viewport:{width:1280,height:1000}});
     const page = await context.newPage();
     try {
-      await page.goto(`${baseURL}/index.html`);
+      await page.goto(`${baseURL}/classic.html`);
       await expect(page.locator('canvas.live-dither')).toHaveCount(7);
       const recipes = [
         {photo:'coffee',palette:dusk,exposure:0.3,contrast:1.1},
@@ -50,10 +50,10 @@ test('homepage rerenders original photographs and preserves displayed palette co
   }
 });
 
-test('homepage links both playgrounds and stays readable on mobile', async ({page},testInfo) => {
+test('classic homepage links both playgrounds and stays readable on mobile', async ({page},testInfo) => {
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('/index.html');
+  await page.goto('/classic.html');
   await expect(page.locator('h1')).toContainText('A little less color.');
   await expect(page.locator('canvas.live-dither')).toHaveCount(7);
   for (const image of await page.locator('main img').all()) {
@@ -77,7 +77,7 @@ test('homepage links both playgrounds and stays readable on mobile', async ({pag
 });
 
 test('exported CLI recipes reproduce named and photo palettes pixel-for-pixel', async ({page},testInfo) => {
-  await page.goto('/');
+  await page.goto('/examples/classic-browser-demo.html');
   await page.locator('#photoSample').selectOption('coffee');
   await expect(page.locator('#sourceName')).toContainText('coffee');
   await expect(page.locator('#download')).toBeEnabled();
@@ -104,7 +104,7 @@ test('exported CLI recipes reproduce named and photo palettes pixel-for-pixel', 
 });
 
 test('gallery recipe follows shared style and individual exposure', async ({page}) => {
-  await page.goto('/examples/responsive-demo.html');
+  await page.goto('/examples/classic-responsive-demo.html');
   await expect(page.locator('.gallery canvas')).toHaveCount(3);
   await page.locator('#colors').selectOption('blue');
   await page.locator('#texture').selectOption('ordered');
