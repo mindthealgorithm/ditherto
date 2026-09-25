@@ -10,7 +10,7 @@ const server = createServer(async (request, response) => {
     const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
     if (path === '/') { response.writeHead(302, { Location: '/examples/browser-demo.html' }).end(); return; }
     let relative = path.slice(1);
-    if (relative === 'index.html' || relative === 'site.css' || relative.startsWith('assets/')) relative = 'site/' + relative;
+    if (relative === 'index.html' || relative === 'site.css' || relative === 'site.js' || relative.startsWith('assets/')) relative = 'site/' + relative;
     const target = resolve(root, relative);
     if (!target.startsWith(root)) throw new Error('Invalid path');
     if (!['examples/', 'dist/', 'tests/fixtures/', 'site/'].some(prefix => relative.startsWith(prefix)) || relative.split('/').includes('..')) {

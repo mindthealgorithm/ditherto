@@ -6,7 +6,7 @@
   <meta name="description" content="Dither photographs into fixed palettes. A small TypeScript library and CLI, with responsive browser rendering and two live playgrounds.">
   <meta property="og:title" content="ditherto — Give your pixels some character.">
   <meta property="og:description" content="Fixed palettes. Photographic detail. A library, a CLI, and two playgrounds.">
-  <meta property="og:image" content="https://jcinis.github.io/ditherto/assets/hero.webp">
+  <meta property="og:image" content="https://jcinis.github.io/ditherto/assets/hero.png">
   <meta property="og:type" content="website"><link rel="canonical" href="https://jcinis.github.io/ditherto/">
   <link rel="stylesheet" href="./site.css">
 </head>
@@ -18,17 +18,33 @@
       <p class="eyebrow">OPEN SOURCE / BROWSER + NODE + CLI</p>
       <div class="hero-heading"><h1 id="hero-title">A little less color.<br><em>A lot more character.</em></h1><p>Give photographs a shared visual language.<br>Choose a palette, find your texture, and leave room for a little imperfection.</p></div>
       <div class="actions"><a class="button" href="./examples/browser-demo.html">Try an image <span>↗</span></a><a class="button secondary" href="./examples/responsive-demo.html">See it across a page <span>↗</span></a></div>
-      <figure class="hero-image"><img src="./assets/hero.webp" width="1216" height="448" alt="The same cup of coffee as a photograph and as an Atkinson dither using four muted colors"><figcaption>Real output from ditherto. Four colors, photographic detail, and a different point of view.</figcaption></figure>
+      <div class="hero-image">
+        <div class="comparison-grid hero-comparison">
+          <figure class="photo-tile"><div class="photo-frame"><img src="./tests/fixtures/photos/coffee.png" width="600" height="400" alt="Original photograph of a cup of coffee"></div><figcaption>Original photograph</figcaption></figure>
+          <figure class="photo-tile"><div class="photo-frame"><img class="live-dither" data-palette-name="dusk" data-exposure="0.3" data-contrast="1.1" src="./tests/fixtures/photos/coffee.png" width="600" height="400" alt="Coffee in four dusk colors using Atkinson dithering"></div><figcaption>Atkinson · four colors</figcaption></figure>
+        </div>
+        <p id="render-status" class="render-note" role="status">Preparing live previews from the original photographs…</p>
+        <noscript><p>Enable JavaScript to see live dithering. These are the original photographs.</p></noscript>
+      </div>
       <div class="facts"><span>Three algorithms</span><span>Any fixed palette</span><span>Automatic browser sizing</span><span>MIT licensed</span></div>
     </section>
     <section id="playgrounds" aria-labelledby="playground-title">
       <div class="section-intro"><p class="eyebrow">01 / MAKE SOMETHING</p><h2 id="playground-title">Start with a picture.<br>Or the whole page.</h2><p>Two ways to try it, right in your browser. Your images are processed on your device.</p></div>
       <div class="playgrounds">
-        <a class="playground-card" href="./examples/browser-demo.html"><img src="./assets/palettes.webp" width="1112" height="287" loading="lazy" alt="Chelsea the cat in blue and white, dusk, and Game Boy palettes"><div><span class="eyebrow">THE IMAGE PLAYGROUND</span><h3>Find your recipe. <span>↗</span></h3><p>Upload a photo. Borrow colors from another image. Tune exposure and contrast. Download a PNG or copy the code and CLI command.</p></div></a>
+        <a class="playground-card" href="./examples/browser-demo.html"><div class="comparison-grid palette-comparison">
+          <figure class="photo-tile"><div class="photo-frame"><img class="live-dither" data-palette-name="blue" src="./tests/fixtures/photos/chelsea.png" width="451" height="300" alt="Chelsea the cat in blue ink and white"></div><figcaption>Blue + white</figcaption></figure>
+          <figure class="photo-tile"><div class="photo-frame"><img class="live-dither" data-palette-name="dusk" src="./tests/fixtures/photos/chelsea.png" width="451" height="300" alt="Chelsea the cat in four dusk colors"></div><figcaption>Dusk</figcaption></figure>
+          <figure class="photo-tile"><div class="photo-frame"><img class="live-dither" data-palette-name="gameboy" src="./tests/fixtures/photos/chelsea.png" width="451" height="300" alt="Chelsea the cat in the Game Boy palette"></div><figcaption>Game Boy</figcaption></figure>
+        </div><div><span class="eyebrow">THE IMAGE PLAYGROUND</span><h3>Find your recipe. <span>↗</span></h3><p>Upload a photo. Borrow colors from another image. Tune exposure and contrast. Download a PNG or copy the code and CLI command.</p></div></a>
         <a class="playground-card editorial" href="./examples/responsive-demo.html"><div class="mini-grid" aria-hidden="true"><span>ONE<br>PALETTE.</span><span>MANY<br>PERSPECTIVES.</span><span>↗</span></div><div><span class="eyebrow">THE RESPONSIVE GALLERY</span><h3>A shared look. A personal touch. <span>↗</span></h3><p>Keep a common palette and texture, tune each image independently, and watch every image rerender when its layout changes.</p></div></a>
       </div>
     </section>
-    <section class="textures" aria-labelledby="texture-title"><div class="section-intro"><p class="eyebrow">02 / CHOOSE YOUR TEXTURE</p><h2 id="texture-title">The pattern is part of the picture.</h2><p>Atkinson’s open texture. Floyd–Steinberg’s fine diffusion. Bayer’s repeating grid. Each takes the same source somewhere different.</p></div><img src="./assets/algorithms.webp" width="1168" height="328" loading="lazy" alt="NASA astronaut portrait: original, Atkinson, Floyd–Steinberg, and ordered Bayer dithering in black and white"></section>
+    <section class="textures" aria-labelledby="texture-title"><div class="section-intro"><p class="eyebrow">02 / CHOOSE YOUR TEXTURE</p><h2 id="texture-title">The pattern is part of the picture.</h2><p>Atkinson’s open texture. Floyd–Steinberg’s fine diffusion. Bayer’s repeating grid. Each takes the same source somewhere different.</p></div><div class="comparison-grid algorithm-comparison">
+      <figure class="photo-tile"><div class="photo-frame"><img src="./tests/fixtures/photos/astronaut.png" width="512" height="512" alt="Original NASA portrait of Eileen Collins"></div><figcaption>Original</figcaption></figure>
+      <figure class="photo-tile"><div class="photo-frame"><img class="live-dither" data-algorithm="atkinson" src="./tests/fixtures/photos/astronaut.png" width="512" height="512" alt="NASA portrait with Atkinson dithering"></div><figcaption>Atkinson</figcaption></figure>
+      <figure class="photo-tile"><div class="photo-frame"><img class="live-dither" data-algorithm="floyd-steinberg" src="./tests/fixtures/photos/astronaut.png" width="512" height="512" alt="NASA portrait with Floyd–Steinberg dithering"></div><figcaption>Floyd–Steinberg</figcaption></figure>
+      <figure class="photo-tile"><div class="photo-frame"><img class="live-dither" data-algorithm="ordered" src="./tests/fixtures/photos/astronaut.png" width="512" height="512" alt="NASA portrait with ordered Bayer dithering"></div><figcaption>Ordered / Bayer</figcaption></figure>
+    </div></section>
     <section id="use-it" aria-labelledby="use-title"><div class="section-intro"><p class="eyebrow">03 / PUT IT TO WORK</p><h2 id="use-title">A small tool.<br>Room for your workflow.</h2><p>Use it in a page, a build script, or an agent’s render–inspect–adjust loop. Resizing is optional; the responsive helper follows your CSS layout.</p></div>
       <div class="code-grid"><article><h3>Let the page set the size.</h3><pre><code>import { observeDitherDOM, PALETTES }
   from 'ditherto/dom';
@@ -50,5 +66,6 @@ await images.images[0].update({ exposure: 0.3 });
     <section class="closing"><span class="asterisk" aria-hidden="true">✳</span><div><h2>Make fewer colors do more.</h2><p>Bring your own palette. Keep your original pixels. Make something that feels like you.</p><a class="button" href="./examples/browser-demo.html">Open the playground ↗</a></div></section>
   </main>
   <footer><a class="brand" href="./">ditherto</a><span>Made by <a href="https://github.com/jcinis">Jessey White-Cinis</a> · MIT</span><a href="./assets/README.md">Image credits</a><a href="https://github.com/jcinis/ditherto/issues">Feedback &amp; ideas ↗</a></footer>
+  <script type="module" src="./site.js"></script>
 </body>
 </html>

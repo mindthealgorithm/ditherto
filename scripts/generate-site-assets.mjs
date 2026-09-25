@@ -20,7 +20,7 @@ async function strip(file, name, settings, labels, tileWidth=360) {
     ctx.drawImage(imageCanvas(pixels),i*(tileWidth+16),0,tileWidth,height);
     ctx.fillStyle='#292537';ctx.font='16px sans-serif';ctx.fillText(labels[i],i*(tileWidth+16),height+30);
   }
-  await writeFile(`site/assets/${file}.webp`,canvas.toBuffer('image/webp',90));
+  await writeFile(`site/assets/${file}.png`,canvas.toBuffer('image/png'));
 }
 await strip('hero','coffee',[null,{palette:dusk,exposure:0.3,contrast:1.1}],['Original photograph','Atkinson · four colors'],600);
 await strip('algorithms','astronaut',[null,{algorithm:'atkinson'},{algorithm:'floyd-steinberg'},{algorithm:'ordered'}],['Original','Atkinson','Floyd–Steinberg','Ordered / Bayer'],280);

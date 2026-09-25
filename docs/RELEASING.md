@@ -49,7 +49,7 @@ Configure an npm trusted publisher for the package: GitHub user `jcinis`, reposi
 
 ## GitHub Pages
 
-`npm run build:site` creates `_site/` using relative links so it works at `/ditherto/`. The Pages workflow deploys `main` through GitHub Actions. Both playgrounds share the built browser bundles and a small, credited sample-photo corpus. The homepage has no application framework or runtime dependency. Run `npm run assets:site` when intentionally refreshing the generated documentation pictures.
+`npm run build:site` creates `_site/` using relative links so it works at `/ditherto/`. The Pages workflow deploys `main` through GitHub Actions. The homepage and both playgrounds share the built browser bundles and a small, credited sample-photo corpus. The homepage uses the library's responsive binding with a shared worker to rerender original photographs at their display widths; it has no application framework. Run `npm run assets:site` when intentionally refreshing the lossless PNG pictures used for static documentation and social previews.
 
 ## Preparation checks
 
