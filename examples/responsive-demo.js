@@ -1,6 +1,6 @@
 import { observeDitherDOM, PALETTES } from '../dist/dom.js';
 const $ = selector => document.querySelector(selector);
-const palettes = { dusk: [[37,33,59],[139,80,102],[221,167,123],[244,236,207]], ink: PALETTES.BW, gameboy: PALETTES.GAMEBOY };
+const palettes = { dusk: [[37,33,59],[139,80,102],[221,167,123],[244,236,207]], ink: PALETTES.BW, gameboy: PALETTES.GAMEBOY, red: PALETTES.MONO_RED, green: PALETTES.MONO_GREEN, blue: PALETTES.MONO_BLUE, yellow: PALETTES.MONO_YELLOW };
 const cards = [...document.querySelectorAll('.gallery article')];
 let controller;
 let worker;

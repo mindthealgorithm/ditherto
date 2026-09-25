@@ -46,6 +46,30 @@ export const PALETTES = {
     [0, 0, 0],       // Black
     [255, 255, 255], // White
   ] as const satisfies readonly ColorRGB[],
+
+  /** Red ink on white. */
+  MONO_RED: [
+    [255, 0, 0],
+    [255, 255, 255],
+  ] as const satisfies readonly ColorRGB[],
+
+  /** Green ink on white. */
+  MONO_GREEN: [
+    [0, 255, 0],
+    [255, 255, 255],
+  ] as const satisfies readonly ColorRGB[],
+
+  /** Blue ink on white. */
+  MONO_BLUE: [
+    [0, 0, 255],
+    [255, 255, 255],
+  ] as const satisfies readonly ColorRGB[],
+
+  /** Yellow ink on white. */
+  MONO_YELLOW: [
+    [255, 255, 0],
+    [255, 255, 255],
+  ] as const satisfies readonly ColorRGB[],
   
   /** Classic GameBoy green palette */
   GAMEBOY: [

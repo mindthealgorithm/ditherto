@@ -2,7 +2,7 @@
 
 Dither images into a fixed palette, with optional resizing and tone adjustments. A TypeScript library for browsers, workers and Node, with a small PNG CLI and interactive examples.
 
-Three algorithms: **Atkinson**, **Floyd–Steinberg**, and deterministic **4×4 Bayer ordered dithering**. Bring your own palette or use black/white, Game Boy, CGA, RGB, or 16-level grayscale.
+Three algorithms: **Atkinson**, **Floyd–Steinberg**, and deterministic **4×4 Bayer ordered dithering**. Bring your own palette or use black/white, monochrome red/green/blue/yellow, Game Boy, CGA, RGB, or 16-level grayscale.
 
 ## Try the playground
 
@@ -112,6 +112,25 @@ Decoded format support depends on the host browser or Node canvas decoder. Anima
 Explicit width/height options can upscale as well as downscale. Nearest-neighbor resizing samples pixel centers. Area resizing integrates each destination pixel’s exact source footprint, including fractional ratios, in encoded sRGB (not linear light). It weights colors by alpha before averaging, so invisible RGB cannot create colored fringes. Both filters are deterministic given the same decoded RGBA pixels; host decoders and color management may differ. The playground defaults to area; the library keeps nearest for compatibility. Extremely thin images retain a minimum dimension of one pixel. Decoded inputs and processed outputs are limited to 8192 pixels per side and 16,777,216 pixels total; these are allocation guards, not a decoder memory guarantee.
 
 RGB matching uses squared Euclidean distance in encoded sRGB. Alpha is retained per pixel; fully transparent pixels do not spread error. Blocks sample the top-left visible pixel (the origin when visible) and fill RGB across the block while retaining each pixel's alpha.
+
+### Monochrome defaults
+
+Use `PALETTES.MONO_RED`, `PALETTES.MONO_GREEN`, `PALETTES.MONO_BLUE`, or `PALETTES.MONO_YELLOW` for a single colored ink on white. Each palette contains exactly two colors:
+
+| Palette | Ink | Paper |
+| --- | --- | --- |
+| `MONO_RED` | `#ff0000` | `#ffffff` |
+| `MONO_GREEN` | `#00ff00` | `#ffffff` |
+| `MONO_BLUE` | `#0000ff` | `#ffffff` |
+| `MONO_YELLOW` | `#ffff00` | `#ffffff` |
+
+```ts
+const pixels = await ditherToImageData(originalImage, {
+  palette: PALETTES.MONO_BLUE,
+});
+```
+
+These are ordinary palettes, available from the main, browser and DOM entries, and work with all three algorithms. Both examples include them in the palette menu. They use the existing RGB color matching, with no grayscale conversion or extra effect. Bright green and yellow produce lighter marks on white; use a custom darker ink color if you want stronger contrast. Transparency is preserved, so white is a palette color rather than a background compositing operation.
 
 ### `ditherImage(input, options?)`
 
