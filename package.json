@@ -9,11 +9,11 @@
     "palette",
     "graphics"
   ],
-  "homepage": "https://github.com/mindthealgorithm/ditherto",
-  "bugs": "https://github.com/mindthealgorithm/ditherto/issues",
+  "homepage": "https://github.com/jcinis/ditherto",
+  "bugs": "https://github.com/jcinis/ditherto/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mindthealgorithm/ditherto.git"
+    "url": "git+https://github.com/jcinis/ditherto.git"
   },
   "license": "MIT",
   "author": "Jessey White-Cinis <j@cin.is>",
